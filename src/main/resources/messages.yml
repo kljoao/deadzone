@@ -1,0 +1,15 @@
+# Mensagens (formato MiniMessage). Ex.: <red>, <green>, <gradient:...>, <bold>
+prefix: "<dark_gray>[<gradient:#8b0000:#ff3b3b>Deadzone</gradient><dark_gray>] "
+
+no-permission: "<red>Você não tem permissão para isso."
+player-only: "<red>Apenas jogadores podem usar este comando."
+unknown-subcommand: "<red>Subcomando desconhecido. Use <yellow>/deadzone info</yellow>."
+reload-success: "<green>Configurações recarregadas."
+player-not-found: "<red>Jogador não encontrado."
+profile-not-loaded: "<red>O perfil desse jogador ainda não foi carregado."
+
+item-given: "<green>Você recebeu o item <white><item></white>."
+item-unknown: "<red>Item desconhecido: <white><item></white>."
+test-item-used: "<light_purple>Token de Teste usado! O framework de itens funciona."
+
+infection-death: "<dark_red><player> sucumbiu à infecção."

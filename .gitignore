@@ -1,0 +1,29 @@
+# Build
+target/
+*.jar
+!**/lib/*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Servidor de teste local (caso fique dentro do projeto)
+run/
+server/
+*.log
+
+# Artefatos e arquivos de trabalho
+dist/
+itens/
+
+# Config local da ferramenta
+.claude/settings.local.json

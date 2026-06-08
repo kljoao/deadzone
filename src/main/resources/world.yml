@@ -1,0 +1,40 @@
+# =========================================================
+#  Deadzone - Regras de Mundo (spawn de mobs)
+# =========================================================
+
+spawn-control:
+  enabled: true
+  # Únicos mobs HOSTIS que podem spawnar. Qualquer outro hostil é bloqueado.
+  allowed-hostiles:
+    - ZOMBIE
+    - HUSK
+    - DROWNED
+    - ZOMBIE_VILLAGER
+  # Razões de spawn que IGNORAM o bloqueio (deixam passar qualquer mob).
+  # CUSTOM = spawns do próprio plugin; COMMAND/SPAWN_EGG = admin/testes.
+  ignored-reasons:
+    - CUSTOM
+    - COMMAND
+    - SPAWNER_EGG
+
+zombies:
+  # Impede que os zumbis (allowed-hostiles) peguem fogo na luz do sol.
+  # Dano de lava, fogo e encantamentos (Aspecto Flamejante) continuam normais.
+  prevent-sun-burn: true
+
+  # Converte qualquer zumbi baby em adulto no spawn (sem baby zombies no servidor).
+  no-baby: true
+
+  # Spawn de zumbis DURANTE O DIA na superfície, ao redor dos jogadores.
+  day-spawn:
+    enabled: true
+    # Só nestes mundos (NORMAL = overworld). Vazio = todos os mundos NORMAL.
+    interval-seconds: 15
+    chance-per-player: 0.5      # chance de tentar spawnar p/ cada jogador a cada ciclo
+    min-radius: 16             # distância mínima do jogador
+    max-radius: 40             # distância máxima
+    pack-min: 1               # quantos zumbis por tentativa (mínimo)
+    pack-max: 3               # (máximo)
+    max-near-player: 12        # não spawnar se já houver tantos zumbis no raio
+    types:                    # quais zumbis spawnar de dia
+      - ZOMBIE

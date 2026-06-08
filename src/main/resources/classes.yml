@@ -1,0 +1,135 @@
+# =========================================================
+#  Deadzone - Classes & Árvore de Habilidades
+# =========================================================
+
+class-change:
+  # Se false, o jogador só escolhe classe quando está sem classe (NONE).
+  # Como a morte reseta tudo, ele reescolhe a cada vida.
+  allow-change: false
+
+# XP por ações.
+xp-sources:
+  zombie-kill: 5
+  mutant-kill:
+    RUNNER: 15
+    TANK: 30
+    EXPLODER: 25
+  revive-ally: 25
+
+# Estado "Derrubado".
+downed:
+  enabled: true
+  duration-seconds: 30
+  revive-health-percent: 50
+  # Causas que pulam o Derrubado (vão direto p/ morte). Infecção já é tratada em código.
+  ignored-causes:
+    - VOID
+    - KILL
+    - SUICIDE
+
+# Médico - Diagnóstico Rápido.
+diagnosis:
+  range: 3
+
+# Bruto - Armas de Contusão (atordoamento).
+stun:
+  chance: 0.20
+  slowness-amplifier: 3
+  duration-seconds: 3
+  weapons:
+    - WOODEN_AXE
+    - STONE_AXE
+    - IRON_AXE
+    - GOLDEN_AXE
+    - DIAMOND_AXE
+    - NETHERITE_AXE
+    - WOODEN_SWORD
+    - STONE_SWORD
+    - IRON_SWORD
+    - GOLDEN_SWORD
+    - DIAMOND_SWORD
+    - NETHERITE_SWORD
+
+# Saqueador - Rádio de Frequência (Sexto Sentido).
+radio:
+  radius: 10
+  duration-seconds: 6
+  cooldown-seconds: 1800        # 30 minutos reais
+  containers: [CHEST, TRAPPED_CHEST, BARREL, SHULKER_BOX]
+
+# Definição dos nós da árvore de habilidades.
+skills:
+  # ----- Médico -----
+  med_diagnostico_rapido:
+    name: "Diagnóstico Rápido"
+    class: MEDICO
+    icon: COMPASS
+    cost: 100
+    slot: 11
+    prerequisites: []
+    description:
+      - "Agache e olhe para um aliado próximo"
+      - "para ver Vida / Infecção / Sanidade."
+  med_reanimacao:
+    name: "Reanimação"
+    class: MEDICO
+    icon: TOTEM_OF_UNDYING
+    cost: 250
+    slot: 13
+    prerequisites: [med_diagnostico_rapido]
+    description:
+      - "Reviva jogadores derrubados usando"
+      - "Kit de Primeiros Socorros ou Desfibrilador."
+  med_farmacologia_avancada:
+    name: "Farmacologia Avançada"
+    class: MEDICO
+    icon: BREWING_STAND
+    cost: 400
+    slot: 15
+    prerequisites: [med_reanimacao]
+    description:
+      - "Fabrica itens médicos T2/T3"
+      - "na Bancada Médica."
+
+  # ----- Bruto -----
+  bru_resistencia_viral:
+    name: "Resistência Viral"
+    class: BRUTO
+    icon: SHIELD
+    cost: 150
+    slot: 12
+    prerequisites: []
+    description:
+      - "-15% de chance de ser infectado."
+  bru_atordoamento:
+    name: "Armas de Contusão"
+    class: BRUTO
+    icon: IRON_AXE
+    cost: 250
+    slot: 14
+    prerequisites: [bru_resistencia_viral]
+    description:
+      - "Chance de atordoar (lentidão pesada)"
+      - "zumbis com machados e espadas."
+
+  # ----- Saqueador -----
+  saq_sexto_sentido:
+    name: "Sexto Sentido"
+    class: SAQUEADOR
+    icon: COMPASS
+    cost: 150
+    slot: 12
+    prerequisites: []
+    description:
+      - "Use o Rádio de Frequência para revelar"
+      - "baús com itens num raio próximo."
+  saq_lockpicking:
+    name: "Mestre do Pé de Cabra"
+    class: SAQUEADOR
+    icon: STICK
+    cost: 250
+    slot: 14
+    prerequisites: [saq_sexto_sentido]
+    description:
+      - "Abra contêineres trancados"
+      - "instantaneamente com o Pé de Cabra."

@@ -1,0 +1,5 @@
+# =========================================================
+#  Deadzone - Zonas Tóxicas / Irradiadas
+#  Crie zonas em jogo: /deadzone zone pos1, pos2, create <nome> [dps]
+# =========================================================
+zones: []

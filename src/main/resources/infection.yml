@@ -1,0 +1,67 @@
+# =========================================================
+#  Deadzone - Sistema de Infecção
+#  NÃO HÁ CURA: infectou, é questão de tempo até a morte.
+# =========================================================
+
+# Chance base de infectar por golpe de zumbi comum.
+base-infection-chance: 0.25
+
+# Chance fixa do Zumbi Corredor (mutante) — ignora a Resistência Viral do Bruto.
+runner-infection-chance: 0.05
+
+# Tempo (segundos reais) do 0 ao 100% da infecção.
+time-to-death-seconds: 3600
+
+# Entidades consideradas "zumbi" para fins de infecção.
+zombie-types:
+  - ZOMBIE
+  - HUSK
+  - DROWNED
+  - ZOMBIE_VILLAGER
+
+# Agravamento: ao TOMAR DANO já infectado, chance de saltar +amount no medidor.
+aggravate:
+  chance: 0.50
+  amount: 15
+  # Causas de dano que contam para o agravamento (o tick de sangramento NÃO deve estar aqui).
+  count-causes:
+    - ENTITY_ATTACK
+    - ENTITY_SWEEP_ATTACK
+    - PROJECTILE
+
+# Redutor de chance do Bruto (skill bru_resistencia_viral). Só afeta a chance BASE (não o Corredor).
+viral-resistance:
+  mode: RELATIVE          # RELATIVE (chance * (1-amount)) | ABSOLUTE (chance - amount)
+  amount: 0.15
+
+# Mostrar o % na action bar do próprio jogador (false = só sob demanda via /deadzone infection get).
+show-actionbar: false
+
+# Sequência de morte: ao chegar a 100% o jogador NÃO morre na hora.
+# Recebe cegueira/lentidão, vê um título na tela e morre após 'duration-seconds'.
+collapse:
+  enabled: true
+  duration-seconds: 10
+  title: "<dark_red><bold>Não aguento mais...</bold>"
+  subtitle: "<gray>A infecção te consome..."
+  blindness: true
+  slowness-amplifier: 4      # -1 para desativar a lentidão
+
+# Efeitos por faixa de infecção. 'from' = % a partir do qual a faixa vale.
+# Em cada efeito: type (id minecraft), amplifier, chance (0..1 por segundo; >=1 = contínuo), duration (s, p/ chance<1).
+stages:
+  s1:
+    from: 25
+    effects:
+      - { type: nausea, amplifier: 0, chance: 0.10, duration: 5 }
+  s2:
+    from: 50
+    effects:
+      - { type: weakness, amplifier: 0, chance: 1.0 }
+      - { type: nausea, amplifier: 0, chance: 0.18, duration: 6 }
+  s3:
+    from: 75
+    effects:
+      - { type: slowness, amplifier: 0, chance: 1.0 }
+      - { type: weakness, amplifier: 1, chance: 1.0 }
+      - { type: nausea, amplifier: 0, chance: 0.30, duration: 8 }

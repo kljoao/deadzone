@@ -1,0 +1,33 @@
+name: ${project.name}
+version: ${project.version}
+main: com.deadzone.DeadzonePlugin
+api-version: '1.21'
+description: ${project.description}
+authors: [Deadzone Team]
+
+commands:
+  deadzone:
+    description: Comando raiz administrativo/debug do Deadzone.
+    usage: /deadzone <info|reload|profile|giveitem|menu|infection|skill>
+    aliases: [dz]
+  bancada:
+    description: Abre a Bancada Médica.
+    usage: /bancada
+    aliases: [medbench]
+  classe:
+    description: Abre o menu de seleção de classe.
+    usage: /classe
+    aliases: [class, classes]
+  skills:
+    description: Abre a árvore de habilidades.
+    usage: /skills
+    aliases: [habilidades, skilltree]
+  base:
+    description: Define/remove sua base (recuperação de sanidade).
+    usage: /base <set|remove|info>
+    aliases: [lar]
+
+permissions:
+  deadzone.admin:
+    description: Acesso aos comandos administrativos do Deadzone.
+    default: op

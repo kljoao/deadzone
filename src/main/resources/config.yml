@@ -1,0 +1,31 @@
+# =========================================================
+#  Deadzone - configuração global
+# =========================================================
+
+# Logs de depuração extras (verboso). Mantenha false em produção.
+debug: false
+
+database:
+  # Tamanho do pool de conexões SQLite. Para servidor único, 4 é suficiente.
+  pool-size: 4
+
+profiles:
+  # Intervalo (minutos) do autosave de perfis "sujos" (alterados).
+  autosave-minutes: 5
+
+# Reset total na morte (permadeath de progressão).
+wipe-on-death:
+  enabled: true
+  # Reseta o XP gastável a 0 na morte.
+  reset-xp: true
+  # Mantém o total histórico de XP ganho (estatística cosmética).
+  keep-total-xp-stat: true
+
+# Envio automático do resource pack (modelos/texturas customizadas) no login.
+# Hospede o dist/deadzone-resourcepack.zip numa URL pública e preencha url + sha1.
+resource-pack:
+  enabled: false
+  url: ""
+  sha1: ""
+  force: false
+  prompt: "<red>Instale o pacote do Deadzone para ver os itens 3D."

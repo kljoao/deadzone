@@ -1,0 +1,119 @@
+# =========================================================
+#  Deadzone - Itens Médicos & Químicos
+#  Fabricados na Bancada Médica (/bancada). Itens com 'requires-skill'
+#  só aparecem na bancada para quem tem a skill (Médico, Fase 3).
+# =========================================================
+
+items:
+
+  bandagem:
+    material: PAPER
+    name: "<white>Bandagem"
+    lore:
+      - "<gray>Estanca sangramentos."
+      - "<dark_gray>Não cura vida."
+    model-data: 1001
+    tier: T1
+    use:
+      cooldown-seconds: 8
+      cast-seconds: 5          # tempo de canalização (segurar/imóvel) para aplicar
+    recipe:
+      ingredients:
+        STRING: 3
+
+  analgesico:
+    material: SUGAR
+    name: "<white>Analgésico"
+    lore:
+      - "<gray>Remove debuffs leves (náusea, fraqueza, lentidão)."
+    model-data: 1002
+    tier: T1
+    use:
+      cooldown-seconds: 20
+      sanity: 5
+    recipe:
+      ingredients:
+        SUGAR: 1
+        GLOWSTONE_DUST: 1
+
+  antidoto:
+    material: GLASS_BOTTLE
+    name: "<green>Antídoto"
+    lore:
+      - "<gray>Suprime os sintomas da infecção por um tempo."
+      - "<dark_red>NÃO cura a infecção."
+    model-data: 1003
+    tier: T2
+    use:
+      cooldown-seconds: 30
+      suppress-seconds: 45
+    recipe:
+      ingredients:
+        SPIDER_EYE: 1
+        SUGAR: 1
+        GLASS_BOTTLE: 1
+
+  seringa_adrenalina:
+    material: BLAZE_ROD
+    name: "<gold>Seringa de Adrenalina"
+    lore:
+      - "<gray>Restaura fôlego e dá um impulso imediato."
+      - "<dark_gray>Fabricação exclusiva: Médico"
+    model-data: 1004
+    tier: T2
+    use:
+      cooldown-seconds: 60
+      speed-seconds: 12
+      speed-amplifier: 1
+      sanity: 25
+    recipe:
+      requires-skill: med_farmacologia_avancada
+      ingredients:
+        IRON_INGOT: 1
+        REDSTONE: 2
+        GHAST_TEAR: 1
+
+  kit_primeiros_socorros:
+    material: SHEARS
+    name: "<red>Kit de Primeiros Socorros"
+    lore:
+      - "<gray>Cura ferimentos graves."
+      - "<gray>Revive jogadores derrubados."
+      - "<dark_gray>Fabricação exclusiva: Médico"
+    model-data: 1005
+    tier: T2
+    use:
+      cooldown-seconds: 30
+      heal: 12
+    recipe:
+      requires-skill: med_farmacologia_avancada
+      ingredients:
+        bandagem: 2
+        LEATHER: 1
+        REDSTONE: 1
+
+  gas_mask:
+    material: CHAINMAIL_HELMET
+    name: "<gray>Máscara de Gás"
+    lore:
+      - "<gray>Equipe no capacete para se proteger"
+      - "<gray>em zonas tóxicas/irradiadas."
+    model-data: 4001
+    tier: T2
+
+  desfibrilador:
+    material: FLINT_AND_STEEL
+    name: "<aqua>Desfibrilador"
+    lore:
+      - "<gray>Revive um jogador derrubado com 50% de vida."
+      - "<dark_gray>Fabricação exclusiva: Médico"
+    model-data: 1006
+    tier: T3
+    use:
+      cooldown-seconds: 5
+    recipe:
+      requires-skill: med_farmacologia_avancada
+      ingredients:
+        COPPER_INGOT: 2
+        REDSTONE_BLOCK: 1
+        QUARTZ: 1

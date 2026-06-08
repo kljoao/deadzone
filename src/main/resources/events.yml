@@ -1,0 +1,56 @@
+# =========================================================
+#  Deadzone - Eventos Dinâmicos
+# =========================================================
+
+mutants:
+  enabled: true
+  # Chance de um zumbi que spawna virar mutante.
+  base-chance: 0.12
+  # Multiplicador da chance durante a Lua de Sangue.
+  blood-moon-multiplier: 2.0
+  # Mostrar nome flutuante no mutante.
+  show-name: false
+  # Pesos relativos por tipo.
+  weights:
+    RUNNER: 0.5
+    TANK: 0.3
+    EXPLODER: 0.2
+  runner:
+    speed: 0.32
+    health: 8.0
+    baby: false
+  tank:
+    speed: 0.16
+    health: 60.0
+    knockback-resistance: 0.8
+    knockback-strength: 1.4
+  exploder:
+    speed: 0.23
+    health: 20.0
+    cloud-radius: 3.0
+    cloud-duration-seconds: 6
+    cloud-effect: poison
+    cloud-amplifier: 0
+
+blood-moon:
+  enabled: true
+  every-x-days: 7
+  reward-xp: 100
+  announce-start: "<dark_red><bold>LUA DE SANGUE</bold>"
+  announce-start-sub: "<red>A horda está faminta..."
+  announce-end: "<gold>A Lua de Sangue passou. Vocês sobreviveram."
+  zombie:
+    speed-multiplier: 1.35
+    health-multiplier: 1.5
+  spawn:
+    interval-seconds: 12
+    extra-per-player: 4
+    min-radius: 10
+    radius: 28
+    cap-per-player: 30
+  break-blocks:
+    enabled: true
+    chance: 0.15
+    interval-seconds: 4
+    radius: 16
+    blocks: [OAK_DOOR, BIRCH_DOOR, SPRUCE_DOOR, GLASS, GLASS_PANE, OAK_FENCE, OAK_FENCE_GATE]

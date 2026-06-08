@@ -1,0 +1,48 @@
+# =========================================================
+#  Deadzone - Sistema de Sanidade
+#  Convenção: ALTO = saudável (100). Baixo = penalidades.
+# =========================================================
+
+start: 100
+
+# Limiar de luz para considerar "iluminado".
+light-threshold: 8
+
+# Itens que, na mão (principal ou secundária), contam como "iluminando" no escuro.
+light-items:
+  - TORCH
+  - SOUL_TORCH
+  - LANTERN
+  - SOUL_LANTERN
+  - JACK_O_LANTERN
+  - GLOWSTONE
+  - SHROOMLIGHT
+  - SEA_LANTERN
+
+# Fatores que REDUZEM a sanidade (por segundo).
+loss:
+  darkness: -0.15            # no escuro, sem luz na mão e sem área iluminada
+  zombie-pressure:
+    radius: 12
+    threshold: 3            # a partir de 3 zumbis no raio começa a pesar
+    per-zombie: -0.05
+
+# Fatores que AUMENTAM a sanidade (por segundo).
+recovery:
+  lit-area: 0.15            # parado em área iluminada
+  base-bonus: 0.25          # dentro da própria base (/base set) e iluminada
+  base-radius: 12
+  company: 0.10             # com outro jogador por perto
+  company-radius: 16
+  daylight: 0.05            # durante o dia
+
+# Efeitos por faixa (aplicam quando a sanidade está ABAIXO de 'below').
+# O mais severo (menor 'below') prevalece. slowness: -1 desativa.
+effects:
+  - { below: 75, melee-multiplier: 0.90, slowness: -1, visual: false }
+  - { below: 50, melee-multiplier: 0.75, slowness: 0,  visual: false }
+  - { below: 25, melee-multiplier: 0.55, slowness: 1,  visual: true }
+
+# BossBar de sanidade: aparece quando a sanidade fica abaixo deste valor.
+bossbar:
+  show-below: 75

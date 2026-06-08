@@ -1,0 +1,185 @@
+package com.deadzone.modules.sanity;
+
+import com.deadzone.DeadzonePlugin;
+import com.deadzone.core.config.ConfigManager;
+import com.deadzone.core.profile.PlayerProfile;
+import com.deadzone.core.scheduler.TickService;
+import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.GameMode;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * Sistema de sanidade: cai no escuro ou cercado por zumbis; recupera em área
+ * iluminada, base, companhia ou de dia. Penaliza dano corpo a corpo e dá lentidão.
+ */
+public class SanityManager {
+
+    private final DeadzonePlugin plugin;
+    private final SanityConfig config;
+    private final BaseService baseService;
+    private final Map<UUID, BossBar> bars = new HashMap<>();
+
+    public SanityManager(DeadzonePlugin plugin, ConfigManager configManager) {
+        this.plugin = plugin;
+        this.config = new SanityConfig(plugin, configManager);
+        this.baseService = new BaseService(plugin);
+    }
+
+    public void enable(TickService tickService) {
+        tickService.registerSecondHandler(this::tick);
+        plugin.getServer().getPluginManager().registerEvents(new SanityListener(plugin, this), plugin);
+    }
+
+    public void reload() {
+        config.load();
+    }
+
+    public SanityConfig config() {
+        return config;
+    }
+
+    public BaseService bases() {
+        return baseService;
+    }
+
+    /** Boost/penalidade direta (usado por medicamentos). */
+    public void add(PlayerProfile profile, double amount) {
+        profile.setSanity(profile.getSanity() + amount);
+    }
+
+    public void tick(PlayerProfile profile) {
+        Player player = plugin.getServer().getPlayer(profile.getUuid());
+        if (player == null) {
+            return;
+        }
+        GameMode mode = player.getGameMode();
+        if (mode != GameMode.SURVIVAL && mode != GameMode.ADVENTURE) {
+            return;
+        }
+
+        boolean lit = isLit(player);
+        boolean holdingLight = holdingLight(player);
+        double delta = 0;
+
+        if (!lit && !holdingLight) {
+            delta += config.darknessLoss();
+        }
+        int zombies = countZombies(player);
+        if (zombies > config.zombieThreshold()) {
+            delta += (zombies - config.zombieThreshold()) * config.perZombieLoss();
+        }
+        if (lit) {
+            delta += config.litAreaGain();
+            if (baseService.isInBase(player, config.baseRadius())) {
+                delta += config.baseBonus();
+            }
+        }
+        if (hasCompany(player)) {
+            delta += config.companyGain();
+        }
+        if (player.getWorld().isDayTime()) {
+            delta += config.daylightGain();
+        }
+
+        double now = clamp(profile.getSanity() + delta);
+        profile.setSanity(now);
+
+        applyEffects(player, now);
+        updateBossbar(player, now);
+    }
+
+    public void clear(UUID uuid) {
+        Player player = plugin.getServer().getPlayer(uuid);
+        BossBar bar = bars.remove(uuid);
+        if (bar != null && player != null) {
+            player.hideBossBar(bar);
+        }
+    }
+
+    private boolean isLit(Player player) {
+        Block b = player.getLocation().getBlock();
+        if (player.getWorld().isDayTime() && b.getLightFromSky() >= config.lightThreshold()) {
+            return true;
+        }
+        return b.getLightFromBlocks() >= config.lightThreshold();
+    }
+
+    private boolean holdingLight(Player player) {
+        return config.lightItems().contains(player.getInventory().getItemInMainHand().getType())
+                || config.lightItems().contains(player.getInventory().getItemInOffHand().getType());
+    }
+
+    private int countZombies(Player player) {
+        int r = config.zombieRadius();
+        int count = 0;
+        for (var e : player.getNearbyEntities(r, r, r)) {
+            if (plugin.getInfectionManager().isZombieType(e)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean hasCompany(Player player) {
+        int r = config.companyRadius();
+        for (Player other : player.getWorld().getPlayers()) {
+            if (!other.equals(player) && other.getLocation().distanceSquared(player.getLocation()) <= (double) r * r) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void applyEffects(Player player, double sanity) {
+        SanityConfig.EffectTier tier = config.tierFor(sanity);
+        if (tier == null) {
+            return;
+        }
+        if (tier.slowness() >= 0) {
+            addEffect(player, "slowness", tier.slowness(), 60);
+        }
+        if (tier.visual() && ThreadLocalRandom.current().nextDouble() < 0.15) {
+            addEffect(player, "nausea", 0, 120);
+        }
+    }
+
+    private void updateBossbar(Player player, double sanity) {
+        if (sanity >= config.bossbarShowBelow()) {
+            clear(player.getUniqueId());
+            return;
+        }
+        BossBar.Color color = sanity < 25 ? BossBar.Color.RED
+                : sanity < 50 ? BossBar.Color.YELLOW : BossBar.Color.GREEN;
+        BossBar bar = bars.computeIfAbsent(player.getUniqueId(), k -> {
+            BossBar b = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
+            player.showBossBar(b);
+            return b;
+        });
+        bar.color(color);
+        bar.progress((float) Math.max(0, Math.min(1, sanity / 100.0)));
+        bar.name(Component.text("🧠 Sanidade: " + (int) sanity + "%", NamedTextColor.WHITE));
+    }
+
+    private void addEffect(Player player, String id, int amplifier, int ticks) {
+        PotionEffectType type = Registry.EFFECT.get(NamespacedKey.minecraft(id));
+        if (type != null) {
+            player.addPotionEffect(new PotionEffect(type, ticks, amplifier, true, false, false));
+        }
+    }
+
+    private double clamp(double v) {
+        return Math.max(0, Math.min(100, v));
+    }
+}

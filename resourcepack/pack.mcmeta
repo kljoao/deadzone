@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Deadzone — itens customizados (crowbar e cia.)",
+    "pack_format": 34,
+    "supported_formats": [34, 42]
+  }
+}

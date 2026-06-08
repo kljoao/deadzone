@@ -1,0 +1,32 @@
+# =========================================================
+#  Deadzone - Sistema de Sangramento
+#  Tratado APENAS com Bandagem.
+# =========================================================
+
+# Chance de iniciar/agravar sangramento ao tomar golpe de zumbi.
+chance-on-zombie-hit: 0.50
+
+# Severidade máxima (cada golpe que "pega" soma +1).
+max-severity: 6
+
+# Dano por tick (1.0 = meio coração).
+damage-per-tick: 1.0
+
+# Intervalo base (severidade 1) e piso (severidade alta), em segundos.
+base-interval-seconds: 15
+min-interval-seconds: 3
+
+# Como a severidade escala o ferimento:
+#   INTERVAL = encurta o intervalo (sangra mais rápido)
+#   DAMAGE   = aumenta o dano por tick
+#   BOTH     = os dois
+scaling: INTERVAL
+
+# Partículas de sangue ao tomar dano de sangramento (rajada no tick de dano).
+particles: true
+
+# Partículas vermelhas contínuas saindo do corpo enquanto sangra (visíveis a todos).
+ambient-particles: true
+
+# Barra de status "Sangrando" enquanto o jogador estiver sangrando (alternativa ao painel de Efeitos).
+status-bossbar: true
