@@ -43,6 +43,12 @@ public class ClassConfig {
     private int radioCooldownSeconds;
     private Set<Material> radioContainers;
 
+    private double crowbarDamage;
+    private double crowbarAttackSpeed;
+    private int crowbarDurability;
+    private int crowbarDurabilityPerHit;
+    private int crowbarDurabilityPerUnlock;
+
     public ClassConfig(DeadzonePlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
         this.configManager = configManager;
@@ -87,6 +93,12 @@ public class ClassConfig {
         this.radioDurationSeconds = c.getInt("radio.duration-seconds", 6);
         this.radioCooldownSeconds = c.getInt("radio.cooldown-seconds", 1800);
         this.radioContainers = parseMaterials(c.getStringList("radio.containers"));
+
+        this.crowbarDamage = c.getDouble("crowbar.damage", 4.0);
+        this.crowbarAttackSpeed = c.getDouble("crowbar.attack-speed", 1.6);
+        this.crowbarDurability = Math.max(1, c.getInt("crowbar.durability", 64));
+        this.crowbarDurabilityPerHit = c.getInt("crowbar.durability-per-hit", 1);
+        this.crowbarDurabilityPerUnlock = c.getInt("crowbar.durability-per-unlock", 3);
     }
 
     private Set<Material> parseMaterials(List<String> names) {
@@ -168,5 +180,25 @@ public class ClassConfig {
 
     public Set<Material> radioContainers() {
         return radioContainers;
+    }
+
+    public double crowbarDamage() {
+        return crowbarDamage;
+    }
+
+    public double crowbarAttackSpeed() {
+        return crowbarAttackSpeed;
+    }
+
+    public int crowbarDurability() {
+        return crowbarDurability;
+    }
+
+    public int crowbarDurabilityPerHit() {
+        return crowbarDurabilityPerHit;
+    }
+
+    public int crowbarDurabilityPerUnlock() {
+        return crowbarDurabilityPerUnlock;
     }
 }

@@ -1,0 +1,18 @@
+# =========================================================
+#  Deadzone - HUD lateral animado (scoreboard)
+# =========================================================
+
+enabled: true
+
+# Intervalo de atualização/animação, em ticks (menor = mais fluido, mais custo).
+animation-interval-ticks: 3
+
+# Tamanho das barras de progresso (Infecção, Sanidade, Vida, Fome).
+bar-length: 10
+
+# Texto do título (recebe o brilho animado).
+title: "DEADZONE"
+
+# Rodapé: por padrão mostra o IP/endereço que o jogador usou para conectar.
+# Este valor só é usado como fallback (ex.: conexões sem host informado).
+footer: "<dark_gray>deadzone.survival"

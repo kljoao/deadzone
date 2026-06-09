@@ -22,6 +22,7 @@ import com.deadzone.modules.classes.command.SkillsCommand;
 import com.deadzone.modules.infection.InfectionConfig;
 import com.deadzone.modules.infection.InfectionManager;
 import com.deadzone.modules.events.EventsManager;
+import com.deadzone.modules.hud.HudService;
 import com.deadzone.modules.medicine.MedicineManager;
 import com.deadzone.modules.medicine.bench.BenchCommand;
 import com.deadzone.modules.sanity.SanityManager;
@@ -51,6 +52,7 @@ public final class DeadzonePlugin extends JavaPlugin {
     private ClassManager classManager;
     private SanityManager sanityManager;
     private EventsManager eventsManager;
+    private HudService hudService;
 
     @Override
     public void onEnable() {
@@ -106,6 +108,9 @@ public final class DeadzonePlugin extends JavaPlugin {
         this.eventsManager = new EventsManager(this, configManager);
         this.eventsManager.enable(tickService);
 
+        this.hudService = new HudService(this, configManager);
+        this.hudService.enable();
+
         PluginCommand deadzone = getCommand("deadzone");
         if (deadzone != null) {
             DeadzoneCommand executor = new DeadzoneCommand(this);
@@ -136,6 +141,9 @@ public final class DeadzonePlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (hudService != null) {
+            hudService.disable();
+        }
         if (eventsManager != null) {
             eventsManager.disable();
         }
@@ -208,5 +216,9 @@ public final class DeadzonePlugin extends JavaPlugin {
 
     public EventsManager getEventsManager() {
         return eventsManager;
+    }
+
+    public HudService getHudService() {
+        return hudService;
     }
 }

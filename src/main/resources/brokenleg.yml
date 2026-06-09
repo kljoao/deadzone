@@ -1,0 +1,26 @@
+# =========================================================
+#  Deadzone - Perna Quebrada (queda)
+# =========================================================
+
+enabled: true
+
+# Altura mínima (blocos de queda) para haver risco de fraturar.
+min-fall-distance: 5
+
+# Chance acumulada por bloco acima do mínimo (0.04 = +4% por bloco).
+chance-per-block: 0.04
+
+# Teto da chance.
+max-chance: 0.9
+
+# Lentidão da perna quebrada (0 = Lentidão I, 1 = II, 2 = III...).
+slowness-amplifier: 1
+
+# Tempo de recuperação natural, em segundos (300 = 5 min).
+recovery-seconds: 300
+
+splint:
+  # Recuperação após usar a Tala, em segundos (60 = 1 min).
+  recovery-seconds: 60
+  # Tempo de uso (canalização imóvel) da Tala, em segundos.
+  cast-seconds: 3

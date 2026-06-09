@@ -1,0 +1,270 @@
+package com.deadzone.modules.hud;
+
+import com.deadzone.DeadzonePlugin;
+import com.deadzone.core.config.ConfigManager;
+import com.deadzone.core.profile.BleedState;
+import com.deadzone.core.profile.PlayerClass;
+import com.deadzone.core.profile.PlayerProfile;
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scoreboard.Criteria;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
+
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Painel lateral animado: título com brilho varrendo, barras de progresso,
+ * divisórias com efeito de scanner e linha de alerta piscante.
+ */
+public class HudService implements Listener {
+
+    private static final int LINES = 10;
+    private static final String[] ENTRIES;
+
+    static {
+        String codes = "0123456789ab";
+        ENTRIES = new String[codes.length()];
+        for (int i = 0; i < codes.length(); i++) {
+            ENTRIES[i] = "§" + codes.charAt(i);
+        }
+    }
+
+    private final DeadzonePlugin plugin;
+    private final HudConfig config;
+    private final Map<UUID, Sidebar> sidebars = new HashMap<>();
+
+    private int taskId = -1;
+    private int frame;
+
+    public HudService(DeadzonePlugin plugin, ConfigManager configManager) {
+        this.plugin = plugin;
+        this.config = new HudConfig(configManager);
+    }
+
+    public void enable() {
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        startTask();
+    }
+
+    public void disable() {
+        if (taskId != -1) {
+            plugin.getServer().getScheduler().cancelTask(taskId);
+            taskId = -1;
+        }
+        clearAll();
+    }
+
+    public void reload() {
+        config.load();
+        clearAll();
+        startTask();
+    }
+
+    private void startTask() {
+        if (taskId != -1) {
+            plugin.getServer().getScheduler().cancelTask(taskId);
+        }
+        long interval = config.animationInterval();
+        this.taskId = plugin.getServer().getScheduler()
+                .runTaskTimer(plugin, this::run, interval, interval).getTaskId();
+    }
+
+    private void run() {
+        if (!config.enabled()) {
+            clearAll();
+            return;
+        }
+        frame++;
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());
+            if (profile == null) {
+                continue;
+            }
+            Sidebar sidebar = sidebars.computeIfAbsent(player.getUniqueId(), k -> build(player));
+            update(player, sidebar, profile);
+        }
+    }
+
+    private Sidebar build(Player player) {
+        Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
+        Objective objective = board.registerNewObjective("dz", Criteria.DUMMY, titleComponent());
+        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        objective.numberFormat(NumberFormat.blank());
+
+        List<Team> teams = new ArrayList<>();
+        for (int i = 0; i < LINES; i++) {
+            Team team = board.registerNewTeam("dz" + i);
+            team.addEntry(ENTRIES[i]);
+            objective.getScore(ENTRIES[i]).setScore(LINES - i);
+            teams.add(team);
+        }
+        player.setScoreboard(board);
+        return new Sidebar(objective, teams);
+    }
+
+    private void update(Player player, Sidebar sidebar, PlayerProfile profile) {
+        sidebar.objective().displayName(titleComponent());
+        List<String> lines = computeLines(player, profile);
+        for (int i = 0; i < LINES; i++) {
+            sidebar.teams().get(i).prefix(plugin.getMessages().parse(lines.get(i)));
+        }
+    }
+
+    private List<String> computeLines(Player player, PlayerProfile profile) {
+        int len = config.barLength();
+        List<String> lines = new ArrayList<>(LINES);
+
+        lines.add(divider(frame));
+
+        boolean infected = profile.isInfected();
+        int infLevel = (int) profile.getInfectionLevel();
+        String infColor = infected ? infectionColor(infLevel) : "<green>";
+        lines.add(infColor + "● <white>" + pad("Infecção") + bar(infected ? infLevel : 0, infColor, len));
+
+        double sanity = profile.getSanity();
+        String sanColor = goodHigh(sanity);
+        lines.add(sanColor + "● <white>" + pad("Sanidade") + bar(sanity, sanColor, len));
+
+        BleedState bleed = profile.getBleedState();
+        lines.add(bleed == null
+                ? "<green>● <white>Sangramento: <green>estável"
+                : "<red>● <white>Sangramento: <red>nível " + bleed.getSeverity());
+
+        lines.add(divider(frame + 8));
+
+        lines.add("<gold>✦ <white>Classe: <gold>" + classLabel(profile.getPlayerClass()));
+        lines.add("<yellow>★ <white>XP: <yellow>" + profile.getXp());
+
+        long day = player.getWorld().getFullTime() / 24000L;
+        String timeIcon = player.getWorld().isDayTime() ? "<gold>☀" : "<aqua>☾";
+        lines.add(timeIcon + " <white>Dia <aqua>" + day);
+
+        lines.add(divider(frame + 4));
+
+        boolean critical = (infected && infLevel >= 75) || sanity < 25 || bleed != null;
+        if (critical) {
+            String color = (frame / 4) % 2 == 0 ? "<red><bold>" : "<dark_red>";
+            lines.add(color + "⚠ PERIGO ⚠");
+        } else {
+            lines.add(serverAddress(player));
+        }
+        return lines;
+    }
+
+    private String serverAddress(Player player) {
+        InetSocketAddress vhost = player.getVirtualHost();
+        if (vhost == null) {
+            return config.footer();
+        }
+        String host = vhost.getHostString();
+        return "<dark_gray>" + (vhost.getPort() == 25565 ? host : host + ":" + vhost.getPort());
+    }
+
+    private Component titleComponent() {
+        String text = config.title();
+        double highlight = (frame * 0.5) % (text.length() + 6);
+        Component core = Component.empty();
+        for (int i = 0; i < text.length(); i++) {
+            double dist = Math.abs(i - highlight);
+            double brightness = Math.max(0, 1.0 - dist / 2.0);
+            core = core.append(Component.text(text.charAt(i))
+                    .color(lerp(0x8B0000, 0xFFE0E0, brightness))
+                    .decoration(TextDecoration.BOLD, true));
+        }
+        return Component.text("☣ ", NamedTextColor.DARK_RED)
+                .append(core)
+                .append(Component.text(" ☣", NamedTextColor.DARK_RED));
+    }
+
+    private String divider(int phase) {
+        int width = 16;
+        int pos = Math.floorMod(phase, width);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < width; i++) {
+            if (i == pos) {
+                sb.append("<red>━");
+            } else if (Math.abs(i - pos) == 1) {
+                sb.append("<#8b1a1a>━");
+            } else {
+                sb.append("<dark_gray>━");
+            }
+        }
+        return sb.toString();
+    }
+
+    private String bar(double pct, String color, int length) {
+        pct = Math.max(0, Math.min(100, pct));
+        int filled = Math.max(0, Math.min(length, (int) Math.round(pct / 100.0 * length)));
+        return color + "█".repeat(filled) + "<dark_gray>" + "░".repeat(length - filled)
+                + " " + color + Math.round(pct) + "%";
+    }
+
+    private String pad(String label) {
+        return label.length() >= 9 ? label : label + " ".repeat(9 - label.length());
+    }
+
+    private String goodHigh(double pct) {
+        return pct >= 66 ? "<green>" : pct >= 33 ? "<gold>" : "<red>";
+    }
+
+    private String infectionColor(int level) {
+        return level >= 75 ? "<dark_red>" : level >= 50 ? "<red>" : level >= 25 ? "<gold>" : "<yellow>";
+    }
+
+    private String classLabel(PlayerClass clazz) {
+        return switch (clazz) {
+            case NONE -> "Nenhuma";
+            case MEDICO -> "Médico";
+            case BRUTO -> "Bruto";
+            case SAQUEADOR -> "Saqueador";
+        };
+    }
+
+    private TextColor lerp(int from, int to, double t) {
+        t = Math.max(0, Math.min(1, t));
+        int fr = (from >> 16) & 0xFF, fg = (from >> 8) & 0xFF, fb = from & 0xFF;
+        int tr = (to >> 16) & 0xFF, tg = (to >> 8) & 0xFF, tb = to & 0xFF;
+        return TextColor.color(
+                (int) (fr + (tr - fr) * t),
+                (int) (fg + (tg - fg) * t),
+                (int) (fb + (tb - fb) * t));
+    }
+
+    private void clearAll() {
+        if (sidebars.isEmpty()) {
+            return;
+        }
+        Scoreboard main = Bukkit.getScoreboardManager().getMainScoreboard();
+        for (UUID uuid : sidebars.keySet()) {
+            Player player = plugin.getServer().getPlayer(uuid);
+            if (player != null) {
+                player.setScoreboard(main);
+            }
+        }
+        sidebars.clear();
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        sidebars.remove(event.getPlayer().getUniqueId());
+    }
+
+    private record Sidebar(Objective objective, List<Team> teams) {
+    }
+}

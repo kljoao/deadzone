@@ -10,6 +10,7 @@ import com.deadzone.modules.medicine.bandage.BandageListener;
 import com.deadzone.modules.medicine.bandage.BandageService;
 import com.deadzone.modules.medicine.bleeding.BleedingConfig;
 import com.deadzone.modules.medicine.bleeding.BleedingManager;
+import com.deadzone.modules.medicine.brokenleg.BrokenLegManager;
 import com.deadzone.modules.medicine.item.Analgesico;
 import com.deadzone.modules.medicine.item.Antidoto;
 import com.deadzone.modules.medicine.item.Bandagem;
@@ -19,6 +20,7 @@ import com.deadzone.modules.medicine.item.ItemDefinition;
 import com.deadzone.modules.medicine.item.ItemsConfig;
 import com.deadzone.modules.medicine.item.KitPrimeirosSocorros;
 import com.deadzone.modules.medicine.item.SeringaAdrenalina;
+import com.deadzone.modules.medicine.item.Tala;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -40,6 +42,7 @@ public class MedicineManager {
     private final BleedingConfig bleedingConfig;
     private final BleedingManager bleedingManager;
     private final BandageService bandageService;
+    private final BrokenLegManager brokenLegManager;
 
     // cooldowns: uuid -> (itemId -> expiraEm millis)
     private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
@@ -50,17 +53,20 @@ public class MedicineManager {
         this.bleedingConfig = new BleedingConfig(configManager);
         this.bleedingManager = new BleedingManager(plugin, bleedingConfig);
         this.bandageService = new BandageService(plugin);
+        this.brokenLegManager = new BrokenLegManager(plugin, configManager);
     }
 
     public void enable(TickService tickService) {
         bleedingManager.enable(tickService);
         plugin.getServer().getPluginManager().registerEvents(new BandageListener(bandageService), plugin);
+        brokenLegManager.enable(tickService);
         registerItems();
     }
 
     public void reload() {
         itemsConfig.load();
         bleedingConfig.load();
+        brokenLegManager.reload();
         registerItems();
     }
 
@@ -70,6 +76,10 @@ public class MedicineManager {
 
     public BandageService bandage() {
         return bandageService;
+    }
+
+    public BrokenLegManager brokenLeg() {
+        return brokenLegManager;
     }
 
     public ItemsConfig items() {
@@ -86,6 +96,7 @@ public class MedicineManager {
                 case "seringa_adrenalina" -> new SeringaAdrenalina(plugin, def);
                 case "kit_primeiros_socorros" -> new KitPrimeirosSocorros(plugin, def);
                 case "desfibrilador" -> new Desfibrilador(plugin, def);
+                case "tala" -> new Tala(plugin, def);
                 default -> new DefinedItem(plugin, def) {
                 }; // item sem comportamento especial
             };

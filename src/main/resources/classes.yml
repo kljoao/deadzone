@@ -57,6 +57,14 @@ radio:
   cooldown-seconds: 1800        # 30 minutos reais
   containers: [CHEST, TRAPPED_CHEST, BARREL, SHULKER_BOX]
 
+# Saqueador - Pé de Cabra (crowbar).
+crowbar:
+  damage: 4                   # dano por batida
+  attack-speed: 1.6           # velocidade de ataque (4 = punho, 1.6 = espada)
+  durability: 64              # usos totais
+  durability-per-hit: 1       # gasto ao bater em um mob
+  durability-per-unlock: 3    # gasto ao arrombar um contêiner trancado
+
 # Definição dos nós da árvore de habilidades.
 skills:
   # ----- Médico -----

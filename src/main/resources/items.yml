@@ -92,6 +92,19 @@ items:
         LEATHER: 1
         REDSTONE: 1
 
+  tala:
+    material: BONE
+    name: "<white>Tala"
+    lore:
+      - "<gray>Imobiliza e acelera a recuperação"
+      - "<gray>de uma perna quebrada."
+    model-data: 1007
+    tier: T1
+    recipe:
+      ingredients:
+        STICK: 2
+        STRING: 1
+
   gas_mask:
     material: CHAINMAIL_HELMET
     name: "<gray>Máscara de Gás"

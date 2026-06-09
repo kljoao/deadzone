@@ -92,6 +92,7 @@ public class DeadzoneCommand implements CommandExecutor, TabCompleter {
         plugin.getClassManager().reload();
         plugin.getSanityManager().reload();
         plugin.getEventsManager().reload();
+        plugin.getHudService().reload();
         plugin.getMessages().send(sender, "reload-success");
     }
 
