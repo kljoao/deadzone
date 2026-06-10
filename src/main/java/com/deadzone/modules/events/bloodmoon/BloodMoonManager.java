@@ -132,7 +132,8 @@ public class BloodMoonManager {
 
     /** Aplica os buffs da Lua de Sangue a um zumbi que spawnou. */
     public void buff(LivingEntity entity) {
-        if (!plugin.getInfectionManager().isZombieType(entity)) {
+        if (!plugin.getInfectionManager().isZombieType(entity)
+                || entity.getPersistentDataContainer().has(EntityKeys.HALLUCINATION, PersistentDataType.BYTE)) {
             return;
         }
         entity.getPersistentDataContainer().set(EntityKeys.BLOOD_MOON_MOB, PersistentDataType.BYTE, (byte) 1);

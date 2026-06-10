@@ -1,0 +1,19 @@
+# =========================================================
+#  Deadzone - Atmosfera (sons ambiente, tensão e alucinações)
+# =========================================================
+
+ambient:
+  enabled: true
+  # Chance por segundo de um som ambiente em momentos calmos.
+  base-chance: 0.06
+  # Zumbis nesse raio aumentam a tensão (sons mais intensos).
+  threat-radius: 16
+
+hallucinations:
+  enabled: true
+  # Sanidade abaixo da qual começam as alucinações.
+  below: 30
+  # Chance por segundo de uma alucinação.
+  chance-per-second: 0.08
+  # Duração do zumbi falso, em segundos.
+  fake-zombie-seconds: 4

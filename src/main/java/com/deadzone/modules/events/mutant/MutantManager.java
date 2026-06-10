@@ -44,8 +44,9 @@ public class MutantManager {
         if (!config.mutantsEnabled() || !plugin.getInfectionManager().isZombieType(entity)) {
             return;
         }
-        if (getType(entity) != null) {
-            return; // já é mutante
+        if (getType(entity) != null
+                || entity.getPersistentDataContainer().has(EntityKeys.HALLUCINATION, PersistentDataType.BYTE)) {
+            return;
         }
         double chance = config.mutantBaseChance();
         if (plugin.getEventsManager().bloodMoon().isActive()) {

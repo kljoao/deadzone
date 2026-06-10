@@ -40,6 +40,7 @@ public class SanityManager {
     public void enable(TickService tickService) {
         tickService.registerSecondHandler(this::tick);
         plugin.getServer().getPluginManager().registerEvents(new SanityListener(plugin, this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new TraumaListener(plugin, this), plugin);
     }
 
     public void reload() {

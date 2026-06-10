@@ -80,6 +80,9 @@ public class BandageService {
         PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());
         if (profile != null) {
             plugin.getMedicineManager().bleeding().stop(profile);
+            if (!channel.item.id().equals("bandagem_esterilizada")) {
+                plugin.getMedicineManager().bleeding().rollWoundInfection(player, profile);
+            }
         }
         consumeMainHand(player, channel.item.id());
         plugin.getMedicineManager().applyCooldown(player, channel.item.id(),

@@ -1,0 +1,26 @@
+# =========================================================
+#  Deadzone - Cerco (zumbis quebrando a base)
+#  Um bloco SO toma dano se >= min-zombies zumbis estiverem
+#  presos contra ELE ao mesmo tempo (forca o comportamento de horda).
+#  Sem ataque, o dano regenera (a barricada "se recupera").
+# =========================================================
+enabled: true
+
+scan-interval-ticks: 10   # de quantos em quantos ticks o cerco e avaliado (10 = 0.5s)
+min-zombies: 2            # quantos zumbis no MESMO bloco para causar dano
+hits-to-break: 20        # "vida" do bloco (numero de pancadas validas)
+decay-seconds: 8         # tempo sem ataque para o dano comecar a regenerar
+scan-radius: 24          # raio (em torno dos jogadores) onde o cerco e avaliado
+drop-on-break: false     # true = o bloco quebrado dropa itens
+
+# Reforcar/barricar: agachar + clique direito num bloco fragil com TABUAS.
+reinforce:
+  enabled: true
+  per-use: 10            # "vida" extra por tabua usada
+  max: 60               # reforco maximo acumulado por bloco
+
+# Alem de portas/alcapoes/cercas/portoes/tabuas/vidro (ja inclusos),
+# liste aqui materiais extras que os zumbis tambem podem cercar:
+breakable:
+  - WHITE_WOOL
+  - OAK_LOG

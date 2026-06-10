@@ -1,0 +1,20 @@
+# =========================================================
+#  Deadzone - Barulho (atrai zumbis)
+# =========================================================
+
+enabled: true
+
+# Acima deste nível de barulho acumulado, zumbis por perto são atraídos.
+threshold: 25
+
+# Quanto o barulho diminui por segundo (silêncio).
+decay-per-second: 2
+
+# Barulho gerado ao quebrar um bloco.
+block-break: 4
+
+# Barulho por segundo correndo sem agachar.
+sprint-per-second: 3
+
+# Raio para atrair zumbis quando o barulho estoura.
+attract-radius: 24

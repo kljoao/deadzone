@@ -1,9 +1,14 @@
 package com.deadzone.modules.world;
 
 import com.deadzone.DeadzonePlugin;
+import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Enemy;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Zombie;
+import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -28,6 +33,9 @@ public class SpawnControlListener implements Listener {
     /** Bloqueia o spawn de qualquer mob hostil que não esteja na lista permitida. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onSpawn(CreatureSpawnEvent event) {
+        if (event.getEntity() instanceof Zombie) {
+            applySpeed(event.getEntity());
+        }
         if (!config.spawnControlEnabled()) {
             return;
         }
@@ -48,6 +56,26 @@ public class SpawnControlListener implements Listener {
                 }
             });
         }
+    }
+
+    /** Deixa os zumbis um pouco mais rápidos (multiplicador no atributo de velocidade). */
+    private void applySpeed(LivingEntity entity) {
+        double mult = config.zombieSpeedMultiplier();
+        if (mult == 1.0) {
+            return;
+        }
+        AttributeInstance attr = entity.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+        if (attr == null) {
+            return;
+        }
+        NamespacedKey key = new NamespacedKey(plugin, "zombie_speed");
+        for (AttributeModifier m : attr.getModifiers()) {
+            if (key.equals(m.getKey())) {
+                return;
+            }
+        }
+        attr.addModifier(new AttributeModifier(key, mult - 1.0,
+                AttributeModifier.Operation.MULTIPLY_SCALAR_1, EquipmentSlotGroup.ANY));
     }
 
     // Impede combustão por luz do sol. Lava/fogo (block) e Aspecto Flamejante (entity)

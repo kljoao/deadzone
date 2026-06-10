@@ -21,9 +21,14 @@ import com.deadzone.modules.classes.command.ClassCommand;
 import com.deadzone.modules.classes.command.SkillsCommand;
 import com.deadzone.modules.infection.InfectionConfig;
 import com.deadzone.modules.infection.InfectionManager;
+import com.deadzone.modules.apocalypse.PlayerZombieListener;
+import com.deadzone.modules.atmosphere.AtmosphereManager;
 import com.deadzone.modules.events.EventsManager;
+import com.deadzone.modules.firearms.FirearmManager;
 import com.deadzone.modules.hud.HudService;
 import com.deadzone.modules.medicine.MedicineManager;
+import com.deadzone.modules.noise.NoiseManager;
+import com.deadzone.modules.siege.SiegeManager;
 import com.deadzone.modules.medicine.bench.BenchCommand;
 import com.deadzone.modules.sanity.SanityManager;
 import com.deadzone.modules.sanity.command.BaseCommand;
@@ -53,6 +58,10 @@ public final class DeadzonePlugin extends JavaPlugin {
     private SanityManager sanityManager;
     private EventsManager eventsManager;
     private HudService hudService;
+    private AtmosphereManager atmosphereManager;
+    private NoiseManager noiseManager;
+    private FirearmManager firearmManager;
+    private SiegeManager siegeManager;
 
     @Override
     public void onEnable() {
@@ -111,6 +120,20 @@ public final class DeadzonePlugin extends JavaPlugin {
         this.hudService = new HudService(this, configManager);
         this.hudService.enable();
 
+        this.atmosphereManager = new AtmosphereManager(this, configManager);
+        this.atmosphereManager.enable(tickService);
+
+        this.noiseManager = new NoiseManager(this, configManager);
+        this.noiseManager.enable(tickService);
+
+        this.firearmManager = new FirearmManager(this, configManager);
+        this.firearmManager.enable(tickService);
+
+        this.siegeManager = new SiegeManager(this, configManager);
+        this.siegeManager.enable();
+
+        getServer().getPluginManager().registerEvents(new PlayerZombieListener(this), this);
+
         PluginCommand deadzone = getCommand("deadzone");
         if (deadzone != null) {
             DeadzoneCommand executor = new DeadzoneCommand(this);
@@ -141,6 +164,9 @@ public final class DeadzonePlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (siegeManager != null) {
+            siegeManager.disable();
+        }
         if (hudService != null) {
             hudService.disable();
         }
@@ -220,5 +246,21 @@ public final class DeadzonePlugin extends JavaPlugin {
 
     public HudService getHudService() {
         return hudService;
+    }
+
+    public AtmosphereManager getAtmosphereManager() {
+        return atmosphereManager;
+    }
+
+    public NoiseManager getNoiseManager() {
+        return noiseManager;
+    }
+
+    public FirearmManager getFirearmManager() {
+        return firearmManager;
+    }
+
+    public SiegeManager getSiegeManager() {
+        return siegeManager;
     }
 }

@@ -90,7 +90,7 @@ public class MedicineManager {
         ItemRegistry registry = plugin.getItemRegistry();
         for (ItemDefinition def : itemsConfig.all()) {
             CustomItem item = switch (def.id()) {
-                case "bandagem" -> new Bandagem(plugin, def);
+                case "bandagem", "bandagem_esterilizada" -> new Bandagem(plugin, def);
                 case "analgesico" -> new Analgesico(plugin, def);
                 case "antidoto" -> new Antidoto(plugin, def);
                 case "seringa_adrenalina" -> new SeringaAdrenalina(plugin, def);

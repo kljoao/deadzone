@@ -1,0 +1,49 @@
+# =========================================================
+#  Deadzone - Armas de Fogo
+#  Base do item: CARROT_ON_A_STICK + custom_model_data.
+#  Clique direito = atira uma bola de neve (projetil) com dano custom.
+#  Municao = bolas de neve do inventario (recarregadas no pente).
+#  Recarga: automatica ao esvaziar, ou manual trocando de maos (tecla F).
+#  Atirar gera barulho e atrai zumbis (integra com o noise.yml).
+# =========================================================
+enabled: true
+
+# Tipos de municao (itens que o jogador carrega). Use o id em ammo-item das armas.
+ammo:
+  "9mm":
+    material: IRON_NUGGET
+    model-data: 4001
+    display-name: "<gray>Municao 9mm"
+    lore:
+      - "<dark_gray>Calibre 9mm"
+
+guns:
+  g17:
+    model-data: 3001
+    display-name: "<gray>Glock 17"
+    lore:
+      - "<dark_gray>Pistola semiautomatica - 9mm"
+      - "<dark_gray>Municao: 9mm"
+    ammo-item: "9mm"           # id da municao usada (secao ammo acima)
+    damage: 4.0                # dano por acerto (tiro)
+    projectile-speed: 4.0      # velocidade da bola de neve (maior = voa mais reto/longe)
+    bullet-drop: 0.015         # queda por tick (menor = cai menos; 0 = totalmente reto)
+    fire-cooldown-ms: 700      # 700ms = ~1.4 tiros por segundo
+    magazine-size: 17          # capacidade do pente
+    reload-ms: 1600            # tempo de recarga
+    draw-ms: 1400              # delay ao sacar a arma (nao atira; a subida e a animacao do vanilla)
+    # Dispersao das balas (imprecisao): cresce no tiro continuo, recupera parado.
+    # Zere os quatro p/ tiro 100% cravado.
+    spread-base: 0.5           # dispersao minima em graus (0 = 1o tiro cravado)
+    spread-per-shot: 0.3       # dispersao adicionada a cada tiro
+    spread-max: 3.0            # teto da dispersao acumulada
+    spread-recovery: 6.0       # graus recuperados por segundo parado
+    # Coronhada (botao esquerdo): so com golpe 100% carregado; cooldown server-side (timer na tela).
+    melee-damage: 4.0          # dano da coronhada
+    melee-cooldown-seconds: 8.0 # cooldown entre golpes (mostra timer; arma nao some)
+    melee-slow-seconds: 5      # duracao da concussao (lentidao + brilho); 0 = sem efeito
+    melee-slow-amplifier: 6    # nivel da lentidao (6 = praticamente parado = "maxima")
+    sound-shoot: "deadzone:firearm.g17.shoot"
+    sound-reload: "deadzone:firearm.g17.reload"
+    noise: 30.0                # barulho gerado por tiro
+    noise-radius: 40           # raio de atracao dos zumbis

@@ -39,6 +39,11 @@ public class SanityConfig {
     private List<EffectTier> effects;
     private double bossbarShowBelow;
 
+    private int traumaWitnessRadius;
+    private double traumaWitnessLoss;
+    private double traumaKillLoss;
+    private int traumaKillThreshold;
+
     public SanityConfig(DeadzonePlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
         this.configManager = configManager;
@@ -83,6 +88,11 @@ public class SanityConfig {
         effects.sort((a, b) -> Double.compare(a.below(), b.below()));
 
         this.bossbarShowBelow = c.getDouble("bossbar.show-below", 75);
+
+        this.traumaWitnessRadius = c.getInt("trauma.witness-radius", 16);
+        this.traumaWitnessLoss = c.getDouble("trauma.witness-loss", 8);
+        this.traumaKillLoss = c.getDouble("trauma.kill-loss", 15);
+        this.traumaKillThreshold = c.getInt("trauma.kill-threshold", 3);
     }
 
     private double toDouble(Object o, double def) {
@@ -118,4 +128,8 @@ public class SanityConfig {
     public int companyRadius() { return companyRadius; }
     public double daylightGain() { return daylightGain; }
     public double bossbarShowBelow() { return bossbarShowBelow; }
+    public int traumaWitnessRadius() { return traumaWitnessRadius; }
+    public double traumaWitnessLoss() { return traumaWitnessLoss; }
+    public double traumaKillLoss() { return traumaKillLoss; }
+    public int traumaKillThreshold() { return traumaKillThreshold; }
 }

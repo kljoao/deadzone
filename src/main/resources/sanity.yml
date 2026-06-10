@@ -46,3 +46,10 @@ effects:
 # BossBar de sanidade: aparece quando a sanidade fica abaixo deste valor.
 bossbar:
   show-below: 75
+
+# Trauma: presenciar mortes e matar jogadores derruba a sanidade.
+trauma:
+  witness-radius: 16     # presenciar uma morte nesse raio
+  witness-loss: 8        # quanto cai ao presenciar
+  kill-loss: 15          # quanto cai ao matar um jogador
+  kill-threshold: 3      # após matar mais de X jogadores, matar não baixa mais (insensível)

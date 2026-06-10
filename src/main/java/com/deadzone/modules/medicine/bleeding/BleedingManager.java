@@ -9,9 +9,13 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +34,7 @@ public class BleedingManager {
     private final DeadzonePlugin plugin;
     private final BleedingConfig config;
     private final Map<UUID, BossBar> bars = new HashMap<>();
+    private final Map<UUID, Long> woundInfectedUntil = new HashMap<>();
 
     public BleedingManager(DeadzonePlugin plugin, BleedingConfig config) {
         this.plugin = plugin;
@@ -76,6 +81,9 @@ public class BleedingManager {
     public void tick(PlayerProfile profile) {
         UUID uuid = profile.getUuid();
         Player player = plugin.getServer().getPlayer(uuid);
+        if (player != null) {
+            tickWound(player, uuid);
+        }
         BleedState state = profile.getBleedState();
 
         if (state == null) {
@@ -109,7 +117,51 @@ public class BleedingManager {
 
     /** Remove a BossBar de um jogador (saída/morte). */
     public void clear(UUID uuid) {
+        woundInfectedUntil.remove(uuid);
         clearBar(uuid, plugin.getServer().getPlayer(uuid));
+    }
+
+    public void rollWoundInfection(Player player, PlayerProfile profile) {
+        if (config.woundChance() <= 0) {
+            return;
+        }
+        if (ThreadLocalRandom.current().nextDouble() < config.woundChance()) {
+            woundInfectedUntil.put(profile.getUuid(),
+                    System.currentTimeMillis() + config.woundDurationSeconds() * 1000L);
+            player.sendActionBar(Component.text("A ferida infeccionou...", NamedTextColor.DARK_RED));
+            player.playSound(player, Sound.ENTITY_ZOMBIE_VILLAGER_CURE, 0.6f, 0.5f);
+        }
+    }
+
+    public void cureWound(UUID uuid) {
+        woundInfectedUntil.remove(uuid);
+    }
+
+    public boolean isWoundInfected(UUID uuid) {
+        return woundInfectedUntil.containsKey(uuid);
+    }
+
+    private void tickWound(Player player, UUID uuid) {
+        Long until = woundInfectedUntil.get(uuid);
+        if (until == null) {
+            return;
+        }
+        if (System.currentTimeMillis() >= until) {
+            woundInfectedUntil.remove(uuid);
+            player.sendActionBar(Component.text("A ferida cicatrizou.", NamedTextColor.GREEN));
+            return;
+        }
+        addEffect(player, "weakness", 0, 60);
+        if (ThreadLocalRandom.current().nextDouble() < 0.2) {
+            addEffect(player, "poison", 0, 60);
+        }
+    }
+
+    private void addEffect(Player player, String id, int amplifier, int ticks) {
+        PotionEffectType type = Registry.EFFECT.get(NamespacedKey.minecraft(id));
+        if (type != null) {
+            player.addPotionEffect(new PotionEffect(type, ticks, amplifier, true, false, false));
+        }
     }
 
     private void spawnBodyParticles(Player player, BleedState state) {

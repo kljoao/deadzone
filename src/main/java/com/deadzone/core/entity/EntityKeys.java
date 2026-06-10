@@ -15,6 +15,15 @@ public final class EntityKeys {
     /** Marca um zumbi spawnado durante a Lua de Sangue. */
     public static NamespacedKey BLOOD_MOON_MOB;
 
+    /** Loot guardado dentro de um zumbi que era um jogador (byte array serializado). */
+    public static NamespacedKey PLAYER_ZOMBIE_LOOT;
+
+    /** Marca um zumbi de alucinação (ignorado por mutação/buffs/loot). */
+    public static NamespacedKey HALLUCINATION;
+
+    /** Marca um projétil (bola de neve) disparado por arma de fogo; valor = dano. */
+    public static NamespacedKey FIREARM_BULLET;
+
     private EntityKeys() {
     }
 
@@ -22,5 +31,8 @@ public final class EntityKeys {
         ZOMBIE_TYPE = new NamespacedKey(plugin, "zombie_type");
         LOCKED_CONTAINER = new NamespacedKey(plugin, "locked_container");
         BLOOD_MOON_MOB = new NamespacedKey(plugin, "blood_moon_mob");
+        PLAYER_ZOMBIE_LOOT = new NamespacedKey(plugin, "player_zombie_loot");
+        HALLUCINATION = new NamespacedKey(plugin, "hallucination");
+        FIREARM_BULLET = new NamespacedKey(plugin, "firearm_bullet");
     }
 }

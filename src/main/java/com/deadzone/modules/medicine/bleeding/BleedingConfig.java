@@ -18,6 +18,8 @@ public class BleedingConfig {
     private boolean particles;
     private boolean ambientParticles;
     private boolean statusBossbar;
+    private double woundChance;
+    private int woundDurationSeconds;
 
     public BleedingConfig(ConfigManager configManager) {
         this.configManager = configManager;
@@ -40,6 +42,8 @@ public class BleedingConfig {
         this.particles = c.getBoolean("particles", true);
         this.ambientParticles = c.getBoolean("ambient-particles", true);
         this.statusBossbar = c.getBoolean("status-bossbar", true);
+        this.woundChance = c.getDouble("wound-infection.chance", 0.35);
+        this.woundDurationSeconds = Math.max(1, c.getInt("wound-infection.duration-seconds", 120));
     }
 
     public double chanceOnHit() {
@@ -60,6 +64,14 @@ public class BleedingConfig {
 
     public boolean statusBossbar() {
         return statusBossbar;
+    }
+
+    public double woundChance() {
+        return woundChance;
+    }
+
+    public int woundDurationSeconds() {
+        return woundDurationSeconds;
     }
 
     /** Dano por tick conforme a severidade e o modo de escala. */

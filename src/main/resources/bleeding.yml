@@ -30,3 +30,9 @@ ambient-particles: true
 
 # Barra de status "Sangrando" enquanto o jogador estiver sangrando (alternativa ao painel de Efeitos).
 status-bossbar: true
+
+# Ferida infeccionada: estancar com bandagem COMUM pode infeccionar a ferida.
+# A Bandagem Esterilizada (bandagem + álcool desinfetante) evita isso.
+wound-infection:
+  chance: 0.35           # chance ao usar bandagem comum
+  duration-seconds: 120  # duração do debuff (fraqueza + veneno leve)

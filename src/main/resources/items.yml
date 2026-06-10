@@ -21,6 +21,35 @@ items:
       ingredients:
         STRING: 3
 
+  alcool_desinfetante:
+    material: GLASS_BOTTLE
+    name: "<aqua>Álcool Desinfetante"
+    lore:
+      - "<gray>Esteriliza ferimentos."
+      - "<gray>Combine com uma bandagem."
+    model-data: 1008
+    tier: T1
+    recipe:
+      ingredients:
+        GLASS_BOTTLE: 1
+        SUGAR: 2
+
+  bandagem_esterilizada:
+    material: PAPER
+    name: "<white>Bandagem Esterilizada"
+    lore:
+      - "<gray>Estanca sangramentos sem risco"
+      - "<gray>de infeccionar a ferida."
+    model-data: 1009
+    tier: T1
+    use:
+      cooldown-seconds: 8
+      cast-seconds: 5
+    recipe:
+      ingredients:
+        bandagem: 1
+        alcool_desinfetante: 1
+
   analgesico:
     material: SUGAR
     name: "<white>Analgésico"

@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Loop temporal central: módulos registram handlers aqui e iteramos os jogadores
- * online uma única vez por ciclo, em vez de cada um criar seu próprio BukkitRunnable.
+ * Loop temporal central: modulos registram handlers aqui e iteramos os jogadores
+ * online uma unica vez por ciclo, em vez de cada um criar seu proprio BukkitRunnable.
  */
 public class TickService {
 

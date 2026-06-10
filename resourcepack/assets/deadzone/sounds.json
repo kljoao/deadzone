@@ -1,0 +1,14 @@
+{
+  "firearm.g17.shoot": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/g17/shoot", "stream": false}
+    ]
+  },
+  "firearm.g17.reload": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/g17/reload", "stream": false}
+    ]
+  }
+}

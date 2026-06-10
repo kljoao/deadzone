@@ -1,0 +1,10 @@
+{
+  "parent": "item/handheld_rod",
+  "textures": {
+    "layer0": "item/carrot_on_a_stick"
+  },
+  "overrides": [
+    {"predicate": {"custom_model_data": 3001}, "model": "deadzone:item/g17"},
+    {"predicate": {"custom_model_data": 3101}, "model": "deadzone:item/g17_drawing"}
+  ]
+}
