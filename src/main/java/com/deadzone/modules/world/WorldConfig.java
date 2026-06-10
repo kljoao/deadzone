@@ -68,7 +68,7 @@ public class WorldConfig {
 
         this.preventSunBurn = c.getBoolean("zombies.prevent-sun-burn", true);
         this.noBaby = c.getBoolean("zombies.no-baby", true);
-        this.zombieSpeedMultiplier = c.getDouble("zombies.speed-multiplier", 1.3);
+        this.zombieSpeedMultiplier = c.getDouble("zombies.speed-multiplier", 1.15);
 
         this.daySpawnEnabled = c.getBoolean("zombies.day-spawn.enabled", true);
         this.dayIntervalSeconds = Math.max(1, c.getInt("zombies.day-spawn.interval-seconds", 15));

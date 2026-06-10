@@ -24,9 +24,9 @@ public class BrokenLegConfig {
     public void load() {
         FileConfiguration c = configManager.loadConfig("brokenleg.yml");
         this.enabled = c.getBoolean("enabled", true);
-        this.minFallDistance = c.getDouble("min-fall-distance", 5);
-        this.chancePerBlock = c.getDouble("chance-per-block", 0.04);
-        this.maxChance = c.getDouble("max-chance", 0.9);
+        this.minFallDistance = c.getDouble("min-fall-distance", 4);
+        this.chancePerBlock = c.getDouble("chance-per-block", 0.10);
+        this.maxChance = c.getDouble("max-chance", 0.95);
         this.slownessAmplifier = c.getInt("slowness-amplifier", 1);
         this.recoverySeconds = Math.max(1, c.getInt("recovery-seconds", 300));
         this.splintRecoverySeconds = Math.max(1, c.getInt("splint.recovery-seconds", 60));

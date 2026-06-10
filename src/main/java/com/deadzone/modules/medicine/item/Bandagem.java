@@ -20,8 +20,13 @@ public class Bandagem extends DefinedItem {
         if (profile == null) {
             return false;
         }
-        if (profile.getBleedState() == null) {
-            player.sendActionBar(Component.text("Você não está sangrando.", NamedTextColor.GRAY));
+        boolean sterile = id().equals("bandagem_esterilizada");
+        boolean bleeding = profile.getBleedState() != null;
+        boolean wound = plugin.getMedicineManager().bleeding().isWoundInfected(player.getUniqueId());
+        // A esterilizada tambem trata ferida infeccionada; a comum so serve para sangramento.
+        if (sterile ? (!bleeding && !wound) : !bleeding) {
+            player.sendActionBar(Component.text(
+                    sterile ? "Você não está ferido." : "Você não está sangrando.", NamedTextColor.GRAY));
             return true; // cancela a interação, mas não gasta o item
         }
         if (plugin.getMedicineManager().bandage().isChanneling(player.getUniqueId())) {

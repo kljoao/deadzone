@@ -7,6 +7,7 @@ import com.deadzone.core.scheduler.TickService;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -17,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -128,7 +130,12 @@ public class BleedingManager {
         if (ThreadLocalRandom.current().nextDouble() < config.woundChance()) {
             woundInfectedUntil.put(profile.getUuid(),
                     System.currentTimeMillis() + config.woundDurationSeconds() * 1000L);
-            player.sendActionBar(Component.text("A ferida infeccionou...", NamedTextColor.DARK_RED));
+            player.showTitle(Title.title(
+                    Component.text("⚠ Ferida Infeccionada", NamedTextColor.DARK_RED),
+                    Component.text("Use uma Bandagem Esterilizada", NamedTextColor.GRAY),
+                    Title.Times.times(Duration.ofMillis(300), Duration.ofMillis(2500), Duration.ofMillis(600))));
+            player.sendMessage(Component.text("Sua ferida infeccionou — trate com uma Bandagem Esterilizada.",
+                    NamedTextColor.DARK_RED));
             player.playSound(player, Sound.ENTITY_ZOMBIE_VILLAGER_CURE, 0.6f, 0.5f);
         }
     }

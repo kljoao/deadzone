@@ -14,6 +14,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -24,9 +27,12 @@ public class AtmosphereManager {
 
     private final DeadzonePlugin plugin;
     private final ConfigManager configManager;
+    private final Map<UUID, Long> lastAmbient = new HashMap<>();
 
     private boolean ambientEnabled;
     private double ambientBaseChance;
+    private double ambientTenseChance;
+    private long ambientMinIntervalMs;
     private int threatRadius;
     private boolean halluEnabled;
     private int halluBelow;
@@ -50,7 +56,9 @@ public class AtmosphereManager {
     private void load() {
         FileConfiguration c = configManager.loadConfig("atmosphere.yml");
         this.ambientEnabled = c.getBoolean("ambient.enabled", true);
-        this.ambientBaseChance = c.getDouble("ambient.base-chance", 0.06);
+        this.ambientBaseChance = c.getDouble("ambient.base-chance", 0.04);
+        this.ambientTenseChance = c.getDouble("ambient.tense-chance", 0.3);
+        this.ambientMinIntervalMs = c.getLong("ambient.min-interval-seconds", 14) * 1000L;
         this.threatRadius = c.getInt("ambient.threat-radius", 16);
         this.halluEnabled = c.getBoolean("hallucinations.enabled", true);
         this.halluBelow = c.getInt("hallucinations.below", 30);
@@ -79,13 +87,20 @@ public class AtmosphereManager {
     }
 
     private void playAmbient(Player player, int threat, double sanity, ThreadLocalRandom rng) {
+        UUID uuid = player.getUniqueId();
+        long now = System.currentTimeMillis();
+        if (now < lastAmbient.getOrDefault(uuid, 0L) + ambientMinIntervalMs) {
+            return; // respeita um intervalo mínimo entre sons (evita spam)
+        }
         boolean tense = threat >= 4 || sanity < 40;
         if (tense) {
-            if (rng.nextDouble() < 0.5) {
+            if (rng.nextDouble() < ambientTenseChance) {
                 player.playSound(player, Sound.ENTITY_WARDEN_HEARTBEAT, 0.6f, 0.7f);
+                lastAmbient.put(uuid, now);
             }
         } else if (rng.nextDouble() < ambientBaseChance) {
             player.playSound(offset(player, rng, 10), Sound.AMBIENT_CAVE, 0.7f, 0.8f);
+            lastAmbient.put(uuid, now);
         }
     }
 

@@ -27,11 +27,13 @@ import com.deadzone.modules.events.EventsManager;
 import com.deadzone.modules.firearms.FirearmManager;
 import com.deadzone.modules.hud.HudService;
 import com.deadzone.modules.medicine.MedicineManager;
+import com.deadzone.modules.claim.ClaimManager;
+import com.deadzone.modules.claim.ConfirmarBaseCommand;
+import com.deadzone.modules.claim.MinhaBaseCommand;
 import com.deadzone.modules.noise.NoiseManager;
 import com.deadzone.modules.siege.SiegeManager;
 import com.deadzone.modules.medicine.bench.BenchCommand;
 import com.deadzone.modules.sanity.SanityManager;
-import com.deadzone.modules.sanity.command.BaseCommand;
 import com.deadzone.modules.world.WorldConfig;
 import com.deadzone.modules.world.WorldManager;
 import org.bukkit.command.PluginCommand;
@@ -62,6 +64,7 @@ public final class DeadzonePlugin extends JavaPlugin {
     private NoiseManager noiseManager;
     private FirearmManager firearmManager;
     private SiegeManager siegeManager;
+    private ClaimManager claimManager;
 
     @Override
     public void onEnable() {
@@ -132,6 +135,9 @@ public final class DeadzonePlugin extends JavaPlugin {
         this.siegeManager = new SiegeManager(this, configManager);
         this.siegeManager.enable();
 
+        this.claimManager = new ClaimManager(this, configManager);
+        this.claimManager.enable();
+
         getServer().getPluginManager().registerEvents(new PlayerZombieListener(this), this);
 
         PluginCommand deadzone = getCommand("deadzone");
@@ -152,11 +158,13 @@ public final class DeadzonePlugin extends JavaPlugin {
         if (skills != null) {
             skills.setExecutor(new SkillsCommand(this));
         }
-        PluginCommand base = getCommand("base");
-        if (base != null) {
-            BaseCommand baseExecutor = new BaseCommand(this);
-            base.setExecutor(baseExecutor);
-            base.setTabCompleter(baseExecutor);
+        PluginCommand confirmar = getCommand("confirmar");
+        if (confirmar != null) {
+            confirmar.setExecutor(new ConfirmarBaseCommand(this));
+        }
+        PluginCommand minhabase = getCommand("minhabase");
+        if (minhabase != null) {
+            minhabase.setExecutor(new MinhaBaseCommand(this));
         }
 
         getLogger().info("Deadzone habilitado em " + (System.currentTimeMillis() - start) + "ms.");
@@ -164,6 +172,9 @@ public final class DeadzonePlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (claimManager != null) {
+            claimManager.disable();
+        }
         if (siegeManager != null) {
             siegeManager.disable();
         }
@@ -262,5 +273,9 @@ public final class DeadzonePlugin extends JavaPlugin {
 
     public SiegeManager getSiegeManager() {
         return siegeManager;
+    }
+
+    public ClaimManager getClaimManager() {
+        return claimManager;
     }
 }

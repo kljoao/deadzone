@@ -42,7 +42,9 @@ public class BrokenLegListener implements Listener {
         if (event.getFinalDamage() >= player.getHealth()) {
             return; // queda letal: deixa o sistema de morte/derrubado cuidar
         }
-        manager.handleFall(player, player.getFallDistance());
+        // getFallDistance pode vir zerado dependendo do timing; o dano de queda (= altura - 3) e confiavel.
+        double fall = Math.max(player.getFallDistance(), event.getDamage() + 3.0);
+        manager.handleFall(player, fall);
     }
 
     @EventHandler

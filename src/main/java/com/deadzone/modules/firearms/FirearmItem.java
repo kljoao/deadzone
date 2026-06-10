@@ -60,6 +60,17 @@ public class FirearmItem extends CustomItem {
             for (String line : type.lore()) {
                 lore.add(MM.deserialize(line).decoration(TextDecoration.ITALIC, false));
             }
+            int rpm = (int) Math.round(60000.0 / Math.max(1, type.fireCooldownMs()));
+            lore.add(Component.empty());
+            lore.add(stat("Munição", type.ammoItem()));
+            lore.add(stat("Dano", String.valueOf((int) type.damage())));
+            lore.add(stat("Cadência", rpm + " RPM"));
+            lore.add(stat("Pente", String.valueOf(type.magazineSize())));
+            if (type.meleeSlowSeconds() > 0) {
+                lore.add(stat("Coronhada", "concussão " + type.meleeSlowSeconds() + "s"));
+            }
+            lore.add(Component.empty());
+            lore.add(MM.deserialize("<dark_gray><italic>Dir: atira  •  Esq: coronhada  •  F: recarregar"));
             meta.lore(lore);
             meta.setCustomModelData(type.customModelData());
             meta.setUnbreakable(true);
@@ -74,5 +85,9 @@ public class FirearmItem extends CustomItem {
                     AttributeModifier.Operation.ADD_NUMBER, EquipmentSlotGroup.MAINHAND));
         });
         return stack;
+    }
+
+    private Component stat(String label, String value) {
+        return MM.deserialize("<gray>" + label + ": <white>" + value).decoration(TextDecoration.ITALIC, false);
     }
 }

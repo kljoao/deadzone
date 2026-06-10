@@ -25,8 +25,9 @@ zombies:
   # Converte qualquer zumbi baby em adulto no spawn (sem baby zombies no servidor).
   no-baby: true
 
-  # Multiplicador de velocidade dos zumbis (1.0 = normal). 1.3 = 30% mais rapidos.
-  speed-multiplier: 1.3
+  # Multiplicador de velocidade de MOVIMENTO dos zumbis (1.0 = normal).
+  # 1.15 = 15% mais rapidos. (A velocidade de ATAQUE e fixa do vanilla.)
+  speed-multiplier: 1.15
 
   # Spawn de zumbis DURANTE O DIA na superfície, ao redor dos jogadores.
   day-spawn:

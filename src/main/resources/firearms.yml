@@ -22,8 +22,7 @@ guns:
     model-data: 3001
     display-name: "<gray>Glock 17"
     lore:
-      - "<dark_gray>Pistola semiautomatica - 9mm"
-      - "<dark_gray>Municao: 9mm"
+      - "<gray>Pistola compacta 9mm, semiautomatica."
     ammo-item: "9mm"           # id da municao usada (secao ammo acima)
     damage: 4.0                # dano por acerto (tiro)
     projectile-speed: 4.0      # velocidade da bola de neve (maior = voa mais reto/longe)

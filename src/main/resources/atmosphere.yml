@@ -5,7 +5,11 @@
 ambient:
   enabled: true
   # Chance por segundo de um som ambiente em momentos calmos.
-  base-chance: 0.06
+  base-chance: 0.04
+  # Chance por segundo do batimento de tensao (perto de zumbis / sanidade baixa).
+  tense-chance: 0.3
+  # Intervalo minimo (segundos) entre dois sons ambiente, p/ nao spammar.
+  min-interval-seconds: 14
   # Zumbis nesse raio aumentam a tensão (sons mais intensos).
   threat-radius: 16
 

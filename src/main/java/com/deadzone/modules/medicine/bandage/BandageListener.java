@@ -22,6 +22,10 @@ public class BandageListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDamage(EntityDamageEvent event) {
+        // O veneno da ferida infeccionada nao interrompe a bandagem (senao nao da pra tratar).
+        if (event.getCause() == EntityDamageEvent.DamageCause.POISON) {
+            return;
+        }
         if (event.getEntity() instanceof Player player && service.isChanneling(player.getUniqueId())) {
             service.cancel(player);
         }

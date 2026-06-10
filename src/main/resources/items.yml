@@ -69,13 +69,14 @@ items:
     material: GLASS_BOTTLE
     name: "<green>Antídoto"
     lore:
-      - "<gray>Suprime os sintomas da infecção por um tempo."
-      - "<dark_red>NÃO cura a infecção."
+      - "<gray>Suprime os sintomas e abaixa 10% da infecção."
+      - "<dark_red>NÃO cura por completo."
     model-data: 1003
     tier: T2
     use:
       cooldown-seconds: 30
-      suppress-seconds: 45
+      suppress-seconds: 90
+      reduce-infection: 10
     recipe:
       ingredients:
         SPIDER_EYE: 1

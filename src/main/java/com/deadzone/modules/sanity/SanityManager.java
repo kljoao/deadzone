@@ -28,13 +28,11 @@ public class SanityManager {
 
     private final DeadzonePlugin plugin;
     private final SanityConfig config;
-    private final BaseService baseService;
     private final Map<UUID, BossBar> bars = new HashMap<>();
 
     public SanityManager(DeadzonePlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
         this.config = new SanityConfig(plugin, configManager);
-        this.baseService = new BaseService(plugin);
     }
 
     public void enable(TickService tickService) {
@@ -49,10 +47,6 @@ public class SanityManager {
 
     public SanityConfig config() {
         return config;
-    }
-
-    public BaseService bases() {
-        return baseService;
     }
 
     /** Boost/penalidade direta (usado por medicamentos). */
@@ -83,9 +77,9 @@ public class SanityManager {
         }
         if (lit) {
             delta += config.litAreaGain();
-            if (baseService.isInBase(player, config.baseRadius())) {
-                delta += config.baseBonus();
-            }
+        }
+        if (plugin.getClaimManager().isInOwnBase(player)) {
+            delta += config.baseBonus();
         }
         if (hasCompany(player)) {
             delta += config.companyGain();
@@ -98,7 +92,7 @@ public class SanityManager {
         profile.setSanity(now);
 
         applyEffects(player, now);
-        updateBossbar(player, now);
+        clear(player.getUniqueId()); // sanidade fica so no scoreboard (sem boss bar)
     }
 
     public void clear(UUID uuid) {

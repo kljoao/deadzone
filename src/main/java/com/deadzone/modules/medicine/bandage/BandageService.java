@@ -77,10 +77,13 @@ public class BandageService {
     }
 
     private void complete(Player player, Channel channel) {
+        boolean sterile = channel.item.id().equals("bandagem_esterilizada");
         PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());
         if (profile != null) {
             plugin.getMedicineManager().bleeding().stop(profile);
-            if (!channel.item.id().equals("bandagem_esterilizada")) {
+            if (sterile) {
+                plugin.getMedicineManager().bleeding().cureWound(player.getUniqueId());
+            } else {
                 plugin.getMedicineManager().bleeding().rollWoundInfection(player, profile);
             }
         }
@@ -88,7 +91,8 @@ public class BandageService {
         plugin.getMedicineManager().applyCooldown(player, channel.item.id(),
                 channel.item.definition().cooldownSeconds());
         player.playSound(player, Sound.BLOCK_WOOL_PLACE, 1.0f, 1.0f);
-        player.sendActionBar(Component.text("Sangramento estancado.", NamedTextColor.GREEN));
+        player.sendActionBar(Component.text(sterile ? "Ferimento tratado." : "Sangramento estancado.",
+                NamedTextColor.GREEN));
         finish(player, channel);
     }
 

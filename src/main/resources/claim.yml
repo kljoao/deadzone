@@ -1,0 +1,24 @@
+# =========================================================
+#  Deadzone - Bases (claims)
+#  Cada jogador pode ter APENAS 1 base. O Livro de Base mostra a area
+#  (verde = livre, vermelho = ocupada) e o clique direito trava a posicao;
+#  /confirmar base cria a base. So da pra construir dentro da propria base.
+# =========================================================
+enabled: true
+
+size: 20                  # area 20x20 (lado do quadrado, em blocos)
+height-up: 15             # blocos acima da superficie
+height-down: 1            # blocos abaixo da superficie
+near-offset: 5            # quao a frente o quadrado comeca (em blocos)
+preview-interval-ticks: 2 # de quantos em quantos ticks o preview e desenhado (menor = mais fluido)
+nucleo-block: LODESTONE   # bloco do nucleo (centro da base; abre o menu, futuro)
+
+# Restricoes (so dentro da propria base):
+restrict-place: true      # colocar blocos so dentro do claim
+restrict-break: true      # quebrar blocos so dentro do claim (coleta = "nos" no futuro)
+
+# /minhabase: mostra as 4 extremidades por alguns segundos (so na tela do jogador).
+limits:
+  seconds: 10             # quanto tempo as marcacoes ficam visiveis
+  marker-height: 6        # altura (blocos) das colunas de marcacao nos cantos
+  block: GLOWSTONE        # bloco usado na marcacao (fake, so visual)

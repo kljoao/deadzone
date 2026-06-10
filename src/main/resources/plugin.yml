@@ -22,12 +22,18 @@ commands:
     description: Abre a árvore de habilidades.
     usage: /skills
     aliases: [habilidades, skilltree]
-  base:
-    description: Define/remove sua base (recuperação de sanidade).
-    usage: /base <set|remove|info>
-    aliases: [lar]
+  confirmar:
+    description: Confirma a reivindicação da base.
+    usage: /confirmar base
+  minhabase:
+    description: Mostra as extremidades da sua base por alguns segundos.
+    usage: /minhabase
+    aliases: [limitesbase]
 
 permissions:
   deadzone.admin:
     description: Acesso aos comandos administrativos do Deadzone.
     default: op
+  deadzone.claim.bypass:
+    description: Ignora a restrição de construir só dentro da base.
+    default: false

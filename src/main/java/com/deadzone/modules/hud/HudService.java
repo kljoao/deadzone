@@ -135,16 +135,21 @@ public class HudService implements Listener {
         boolean infected = profile.isInfected();
         int infLevel = (int) profile.getInfectionLevel();
         String infColor = infected ? infectionColor(infLevel) : "<green>";
-        lines.add(infColor + "● <white>" + pad("Infecção") + bar(infected ? infLevel : 0, infColor, len));
+        lines.add(meter(infColor, "Infecção", infected ? infLevel : 0, len));
 
         double sanity = profile.getSanity();
         String sanColor = goodHigh(sanity);
-        lines.add(sanColor + "● <white>" + pad("Sanidade") + bar(sanity, sanColor, len));
+        lines.add(meter(sanColor, "Sanidade", sanity, len));
 
         BleedState bleed = profile.getBleedState();
-        lines.add(bleed == null
-                ? "<green>● <white>Sangramento: <green>estável"
-                : "<red>● <white>Sangramento: <red>nível " + bleed.getSeverity());
+        boolean wound = plugin.getMedicineManager().bleeding().isWoundInfected(player.getUniqueId());
+        if (bleed != null) {
+            lines.add("<red>● <white>Sangramento: <red>nível " + bleed.getSeverity());
+        } else if (wound) {
+            lines.add("<gold>● <white>Ferida: <gold>infeccionada");
+        } else {
+            lines.add("<green>● <white>Sangramento: <green>estável");
+        }
 
         lines.add(divider(frame + 8));
 
@@ -208,15 +213,12 @@ public class HudService implements Listener {
         return sb.toString();
     }
 
-    private String bar(double pct, String color, int length) {
+    /** Linha de medidor: barra em posição fixa (após o ●) e rótulo/valor depois, para alinhar. */
+    private String meter(String color, String label, double pct, int length) {
         pct = Math.max(0, Math.min(100, pct));
         int filled = Math.max(0, Math.min(length, (int) Math.round(pct / 100.0 * length)));
-        return color + "█".repeat(filled) + "<dark_gray>" + "░".repeat(length - filled)
-                + " " + color + Math.round(pct) + "%";
-    }
-
-    private String pad(String label) {
-        return label.length() >= 9 ? label : label + " ".repeat(9 - label.length());
+        return color + "● " + color + "█".repeat(filled) + "<dark_gray>" + "░".repeat(length - filled)
+                + " <white>" + label + " " + color + Math.round(pct) + "%";
     }
 
     private String goodHigh(double pct) {
