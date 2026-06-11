@@ -22,3 +22,18 @@ limits:
   seconds: 10             # quanto tempo as marcacoes ficam visiveis
   marker-height: 6        # altura (blocos) das colunas de marcacao nos cantos
   block: GLOWSTONE        # bloco usado na marcacao (fake, so visual)
+
+# Baus FISICOS: o jogador coloca bau no chao (trancado por senha de 4 digitos).
+chests:
+  base: 4                 # baus dados ao claimar (= limite inicial). 4 baus = 2 baus duplos
+  per-upgrade: 2          # +limite (e baus entregues) por nivel de upgrade
+
+# Evolucao da base (menu do nucleo -> Evoluir). Custo em XP (0 = gratis).
+upgrades:
+  height:
+    max: 4                # quantas vezes da pra subir
+    blocks: 4             # +blocos de altura por nivel
+    cost-xp: 100          # custo de XP por nivel
+  chest:
+    max: 20               # niveis de upgrade do limite de baus
+    cost-xp: 50           # custo de XP por nivel

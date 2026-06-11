@@ -51,9 +51,13 @@ public class BaseMenu extends Menu {
 
         setItem(15, ClaimIcons.item(Material.ANVIL,
                         Component.text("Evoluir base", NamedTextColor.GOLD),
-                        Component.text("Subir altura e baús.", NamedTextColor.GRAY),
-                        Component.text("Em breve (Fase 3).", NamedTextColor.DARK_GRAY)),
-                e -> viewer.sendActionBar(Component.text("Evolução chega na Fase 3.", NamedTextColor.GRAY)));
+                        Component.text("Subir altura e comprar baús.", NamedTextColor.GRAY)),
+                e -> new EvoluirMenu(plugin, manager, claim).open(viewer));
+
+        setItem(26, ClaimIcons.item(Material.BARRIER,
+                        Component.text("Remover base", NamedTextColor.RED),
+                        Component.text("Apaga a base permanentemente.", NamedTextColor.GRAY)),
+                e -> new RemoverBaseMenu(plugin, manager, claim).open(viewer));
 
         fillEmpty(ClaimIcons.filler());
     }

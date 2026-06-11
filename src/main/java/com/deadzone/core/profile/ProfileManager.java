@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 
 /**
  * Cache em memória dos perfis + persistência assíncrona.
@@ -22,6 +23,7 @@ public class ProfileManager {
     private final PlayerProfileDao dao;
     private final ConfigManager config;
     private final Map<UUID, PlayerProfile> cache = new ConcurrentHashMap<>();
+    private final List<BiConsumer<Player, PlayerProfile>> loadHooks = new ArrayList<>();
 
     private int autosaveTaskId = -1;
 
@@ -52,6 +54,11 @@ public class ProfileManager {
         saveAllSync();
     }
 
+    /** Callback executado (na main thread) após carregar o perfil no join. */
+    public void onProfileLoaded(BiConsumer<Player, PlayerProfile> hook) {
+        loadHooks.add(hook);
+    }
+
     public PlayerProfile get(UUID uuid) {
         return cache.get(uuid);
     }
@@ -77,7 +84,15 @@ public class ProfileManager {
             }
             final PlayerProfile profile = (loaded != null) ? loaded : PlayerProfile.createDefault(id, name);
             profile.setLastKnownName(name);
-            plugin.getServer().getScheduler().runTask(plugin, () -> cache.put(id, profile));
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                cache.put(id, profile);
+                Player online = plugin.getServer().getPlayer(id);
+                if (online != null) {
+                    for (BiConsumer<Player, PlayerProfile> hook : loadHooks) {
+                        hook.accept(online, profile);
+                    }
+                }
+            });
         });
     }
 

@@ -28,9 +28,17 @@ public class SchemaManager {
                     xp                INTEGER NOT NULL DEFAULT 0,
                     total_xp_earned   INTEGER NOT NULL DEFAULT 0,
                     first_join        INTEGER,
-                    last_seen         INTEGER
+                    last_seen         INTEGER,
+                    downed_until      INTEGER NOT NULL DEFAULT 0
                 )
                 """);
+
+            // Migração: garante a coluna downed_until em bancos antigos.
+            try {
+                st.execute("ALTER TABLE players ADD COLUMN downed_until INTEGER NOT NULL DEFAULT 0");
+            } catch (SQLException ignored) {
+                // coluna já existe
+            }
 
             st.execute("""
                 CREATE TABLE IF NOT EXISTS player_skills (

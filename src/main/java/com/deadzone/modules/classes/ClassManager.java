@@ -47,6 +47,9 @@ public class ClassManager {
         pm.registerEvents(new SaqueadorListener(plugin, saqueadorManager), plugin);
         pm.registerEvents(new ClassRespawnListener(plugin, this), plugin);
 
+        // Restaura o estado "Derrubado" ao logar (sobrevive ao relog).
+        plugin.getProfileManager().onProfileLoaded((player, profile) -> downedManager.restore(player, profile));
+
         tickService.registerSecondHandler(this::diagnosisTick);
 
         plugin.getItemRegistry().register(new RadioFrequencia(plugin));

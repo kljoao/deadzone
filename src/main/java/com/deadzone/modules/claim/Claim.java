@@ -25,6 +25,8 @@ public final class Claim {
     private final int nucleoY;
     private final int nucleoZ;
     private final Map<UUID, Set<String>> members = new HashMap<>();
+    private final Set<Integer> placed = new HashSet<>(); // blocos construídos (chave relativa)
+    private int[] ground; // altura do solo natural por coluna na criação (p/ apagar só a construção)
     private int heightUpgrades;
     private int chestUpgrades;
 
@@ -149,5 +151,19 @@ public final class Claim {
         } else {
             flags.remove(flag);
         }
+    }
+
+    // ----- blocos construídos (para apagar a construção ao remover) -----
+
+    public Set<Integer> placed() {
+        return placed;
+    }
+
+    public int[] ground() {
+        return ground;
+    }
+
+    public void setGround(int[] ground) {
+        this.ground = ground;
     }
 }

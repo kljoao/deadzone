@@ -15,6 +15,7 @@ public record ProfileSnapshot(
         long totalXpEarned,
         long firstJoin,
         long lastSeen,
+        long downedUntil,
         Set<String> skills
 ) {
 }

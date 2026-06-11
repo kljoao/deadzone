@@ -15,8 +15,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockBurnEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -35,34 +40,74 @@ public class ClaimListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
-        if (!manager.restrictPlace() || bypass(event.getPlayer())) {
-            return;
-        }
-        if (!manager.canBuildAt(event.getPlayer(), event.getBlock().getLocation())) {
+        Block block = event.getBlock();
+        if (manager.restrictPlace() && !bypass(event.getPlayer())
+                && !manager.canBuildAt(event.getPlayer(), block.getLocation())) {
             event.setCancelled(true);
             deny(event.getPlayer());
+            return;
+        }
+        Claim claim = manager.claimAt(block.getLocation());
+        if (claim != null) {
+            manager.recordPlace(claim, block); // marca como "construção" para apagar na remoção
         }
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
-        if (bypass(event.getPlayer())) {
-            return;
-        }
         Block block = event.getBlock();
-        // O núcleo só o dono quebra.
+        // O núcleo nunca é quebrável (nem pelo dono) — remover só pelo menu da base.
         Claim nucleo = manager.claimByNucleo(block.getLocation());
-        if (nucleo != null && !nucleo.owner().equals(event.getPlayer().getUniqueId())) {
+        if (nucleo != null) {
             event.setCancelled(true);
-            event.getPlayer().sendActionBar(Component.text("Núcleo de outro jogador.", NamedTextColor.RED));
+            event.getPlayer().sendActionBar(Component.text(
+                    nucleo.owner().equals(event.getPlayer().getUniqueId())
+                            ? "Use o menu do núcleo para remover a base."
+                            : "Núcleo de outro jogador.", NamedTextColor.RED));
             return;
         }
-        if (!manager.restrictBreak()) {
-            return;
-        }
-        if (!manager.canBuildAt(event.getPlayer(), block.getLocation())) {
+        if (!bypass(event.getPlayer()) && manager.restrictBreak()
+                && !manager.canBuildAt(event.getPlayer(), block.getLocation())) {
             event.setCancelled(true);
             deny(event.getPlayer());
+            return;
+        }
+        Claim claim = manager.claimAt(block.getLocation());
+        if (claim != null) {
+            manager.recordBreak(claim, block);
+        }
+    }
+
+    // ----- núcleo (bloco de controle) é indestrutível -----
+
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityExplode(EntityExplodeEvent event) {
+        event.blockList().removeIf(b -> manager.claimByNucleo(b.getLocation()) != null);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockExplode(BlockExplodeEvent event) {
+        event.blockList().removeIf(b -> manager.claimByNucleo(b.getLocation()) != null);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPistonExtend(BlockPistonExtendEvent event) {
+        if (event.getBlocks().stream().anyMatch(b -> manager.claimByNucleo(b.getLocation()) != null)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent event) {
+        if (event.getBlocks().stream().anyMatch(b -> manager.claimByNucleo(b.getLocation()) != null)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBurn(BlockBurnEvent event) {
+        if (manager.claimByNucleo(event.getBlock().getLocation()) != null) {
+            event.setCancelled(true);
         }
     }
 
@@ -89,6 +134,9 @@ public class ClaimListener implements Listener {
 
         if (bypass(player) || manager.claimAt(block.getLocation()) == null) {
             return;
+        }
+        if (manager.lockedChests().isLocked(block)) {
+            return; // baú trancado é tratado pelo LockedChestListener (senha)
         }
         Material m = block.getType();
         boolean container = block.getState() instanceof InventoryHolder;

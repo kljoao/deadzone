@@ -73,6 +73,7 @@ public class DownedListener implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        manager.cleanup(event.getPlayer());
+        // Não dá cleanup (que zeraria o estado): só desanexa o runtime e preserva o downed para o relog.
+        manager.detach(event.getPlayer());
     }
 }

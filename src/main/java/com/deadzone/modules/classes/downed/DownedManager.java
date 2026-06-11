@@ -55,32 +55,64 @@ public class DownedManager {
 
     /** Coloca o jogador no estado derrubado. */
     public void enterDowned(Player player, PlayerProfile profile) {
-        UUID uuid = player.getUniqueId();
-        if (downed.containsKey(uuid)) {
+        if (downed.containsKey(player.getUniqueId())) {
             return;
         }
         int seconds = config.downedDurationSeconds();
         long now = System.currentTimeMillis();
         profile.setDownedState(new DownedState(now, now + seconds * 1000L));
+        player.playSound(player, Sound.ENTITY_PLAYER_BIG_FALL, 1f, 0.5f);
+        announceNearby(player);
+        apply(player, seconds * 20);
+    }
 
-        player.setHealth(1.0); // fica visualmente à beira da morte (já invulnerável)
+    /** Re-aplica o estado ao logar, com o tempo restante (ou mata se já expirou offline). */
+    public void restore(Player player, PlayerProfile profile) {
+        DownedState ds = profile.getDownedState();
+        if (ds == null || downed.containsKey(player.getUniqueId())) {
+            return;
+        }
+        long remainingMs = ds.getExpiresAt() - System.currentTimeMillis();
+        if (remainingMs <= 0) {
+            profile.setDownedState(null);
+            realDeath(player); // o tempo esgotou enquanto estava offline
+            return;
+        }
+        apply(player, (int) (remainingMs / 50L));
+        player.sendActionBar(Component.text("Você ainda está derrubado — peça ajuda!", NamedTextColor.RED));
+    }
+
+    /** Aplica visual/efeitos/bossbar/timer do estado derrubado por N ticks. */
+    private void apply(Player player, int totalTicks) {
+        player.setHealth(1.0); // à beira da morte (e invulnerável)
         float originalWalkSpeed = player.getWalkSpeed();
         player.setWalkSpeed(0f);
         player.setSprinting(false);
-        addEffect(player, "slowness", 255, seconds * 20 + 40);
-        addEffect(player, "jump_boost", 128, seconds * 20 + 40);
-        addEffect(player, "blindness", 0, seconds * 20 + 40);
+        addEffect(player, "slowness", 255, totalTicks + 40);
+        addEffect(player, "jump_boost", 128, totalTicks + 40);
+        addEffect(player, "blindness", 0, totalTicks + 40);
 
         BossBar bar = BossBar.bossBar(
                 Component.text("DERRUBADO — peça ajuda!", NamedTextColor.RED),
                 1f, BossBar.Color.RED, BossBar.Overlay.PROGRESS);
         player.showBossBar(bar);
-        player.playSound(player, Sound.ENTITY_PLAYER_BIG_FALL, 1f, 0.5f);
-        announceNearby(player);
 
-        Downed state = new Downed(originalWalkSpeed, bar, seconds * 20);
+        Downed state = new Downed(originalWalkSpeed, bar, totalTicks);
         state.task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> tick(player, state), 1L, 1L);
-        downed.put(uuid, state);
+        downed.put(player.getUniqueId(), state);
+    }
+
+    /** Desanexa o runtime ao sair, mas PRESERVA o estado no profile (persiste downed_until). */
+    public void detach(Player player) {
+        Downed state = downed.remove(player.getUniqueId());
+        if (state == null) {
+            return;
+        }
+        if (state.task != null) {
+            state.task.cancel();
+        }
+        player.hideBossBar(state.bar);
+        // walkspeed/efeitos somem no logout; profile.downedState fica salvo
     }
 
     private void tick(Player player, Downed state) {

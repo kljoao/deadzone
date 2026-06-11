@@ -14,6 +14,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -23,8 +24,10 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +50,9 @@ public class ClaimManager {
     private final Map<UUID, Pending> pending = new HashMap<>();
     private final Map<UUID, Boolean> inBase = new HashMap<>();
     private BukkitTask previewTask;
+    private BukkitTask saveTask;
+    private boolean dirty;
+    private final LockedChestManager lockedChests;
 
     private boolean enabled;
     private int size;
@@ -60,6 +66,13 @@ public class ClaimManager {
     private int markerSeconds;
     private Material markerBlock;
     private Material nucleoBlock;
+    private int heightMaxUpgrades;
+    private int heightBlocks;
+    private int heightCostXp;
+    private int chestMaxUpgrades;
+    private int chestCostXp;
+    private int baseChests;
+    private int chestsPerUpgrade;
 
     public ClaimManager(DeadzonePlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
@@ -67,14 +80,37 @@ public class ClaimManager {
         this.dataFile = new File(plugin.getDataFolder(), "claims.yml");
         loadConfig();
         loadClaims();
+        this.lockedChests = new LockedChestManager(plugin, this);
+    }
+
+    public LockedChestManager lockedChests() {
+        return lockedChests;
+    }
+
+    /** Limite de baús físicos da base. */
+    public int chestLimit(Claim claim) {
+        return baseChests + claim.chestUpgrades() * chestsPerUpgrade;
+    }
+
+    private void giveChests(Player player, int amount) {
+        if (amount > 0) {
+            player.getInventory().addItem(new ItemStack(Material.CHEST, amount));
+        }
     }
 
     public void enable() {
         plugin.getItemRegistry().register(new LivroDeBase(plugin, this));
         plugin.getServer().getPluginManager().registerEvents(new ClaimListener(plugin, this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new LockedChestListener(plugin, this), plugin);
         plugin.getTickService().registerSecondHandler(this::baseTick);
         previewTask = plugin.getServer().getScheduler()
                 .runTaskTimer(plugin, this::previewTick, previewInterval, previewInterval);
+        // Flush periódico (blocos construídos mudam muito; não salva a cada bloco).
+        saveTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+            if (dirty) {
+                saveClaims();
+            }
+        }, 600L, 600L);
     }
 
     /** Título ao entrar/sair da própria base. */
@@ -116,7 +152,26 @@ public class ClaimManager {
         if (previewTask != null) {
             previewTask.cancel();
         }
+        if (saveTask != null) {
+            saveTask.cancel();
+        }
         saveClaims();
+    }
+
+    /** Registra um bloco construído dentro da base (para apagar a construção ao remover). */
+    public void recordPlace(Claim claim, Block block) {
+        claim.placed().add(packRel(claim, block.getX(), block.getY(), block.getZ()));
+        dirty = true;
+    }
+
+    public void recordBreak(Claim claim, Block block) {
+        if (claim.placed().remove(packRel(claim, block.getX(), block.getY(), block.getZ()))) {
+            dirty = true;
+        }
+    }
+
+    private int packRel(Claim c, int x, int y, int z) {
+        return ((y - c.minY()) << 12) | ((x - c.minX()) << 6) | (z - c.minZ());
     }
 
     public void reload() {
@@ -287,13 +342,18 @@ public class ClaimManager {
             return;
         }
         // Desnível: menor e maior superfície na área -> caixa cobre tudo.
+        // Também guardamos o relevo natural por coluna (p/ apagar só a construção na remoção).
         int minSurface = Integer.MAX_VALUE;
         int maxSurface = Integer.MIN_VALUE;
+        int width = p.maxX() - p.minX() + 1;
+        int depth = p.maxZ() - p.minZ() + 1;
+        int[] ground = new int[width * depth];
         for (int x = p.minX(); x <= p.maxX(); x++) {
             for (int z = p.minZ(); z <= p.maxZ(); z++) {
                 int y = world.getHighestBlockYAt(x, z);
                 minSurface = Math.min(minSurface, y);
                 maxSurface = Math.max(maxSurface, y);
+                ground[(x - p.minX()) * depth + (z - p.minZ())] = y;
             }
         }
         int minY = minSurface - heightDown;
@@ -307,14 +367,16 @@ public class ClaimManager {
 
         Claim claim = new Claim(player.getUniqueId(), p.world(),
                 p.minX(), p.maxX(), p.minZ(), p.maxZ(), minY, maxY, cx, cy, cz);
+        claim.setGround(ground);
         claims.put(player.getUniqueId(), claim);
         pending.remove(player.getUniqueId());
         saveClaims();
         consumeBook(player);
+        giveChests(player, baseChests); // baús iniciais para colocar na base
 
         player.playSound(player, Sound.ITEM_TOTEM_USE, 1f, 1.2f);
         player.sendMessage(Component.text("Base reivindicada! ", NamedTextColor.GREEN)
-                .append(Component.text("(" + size + "x" + size + ", altura " + minY + " a " + maxY + ")",
+                .append(Component.text("(" + size + "x" + size + ", " + baseChests + " baús)",
                         NamedTextColor.GRAY)));
     }
 
@@ -323,6 +385,64 @@ public class ClaimManager {
         plugin.getItemRegistry().resolve(hand)
                 .filter(ci -> ci.id().equals(BOOK_ID))
                 .ifPresent(ci -> hand.setAmount(hand.getAmount() - 1));
+    }
+
+    /** Remove a base: apaga a construção e TODOS os itens/baús, tira o núcleo e devolve um Livro de Base. */
+    public void removeClaim(Player owner, Claim claim) {
+        World w = Bukkit.getWorld(claim.world());
+        if (w != null) {
+            clearConstruction(w, claim);
+            Block nucleo = w.getBlockAt(claim.nucleoX(), claim.nucleoY(), claim.nucleoZ());
+            if (nucleo.getType() == nucleoBlock) {
+                nucleo.setType(Material.AIR, false);
+            }
+        }
+        claim.placed().clear();
+        lockedChests.removeLocksInClaim(claim); // remove as trancas dos baús (conteúdo é apagado)
+        claims.remove(claim.owner());
+        inBase.remove(claim.owner());
+        saveClaims();
+        owner.closeInventory();
+        owner.getInventory().addItem(new LivroDeBase(plugin, this).build());
+        owner.playSound(owner, Sound.BLOCK_BEACON_DEACTIVATE, 1f, 1f);
+        owner.sendMessage(Component.text("Base removida — construção e itens apagados. "
+                + "Você recebeu um Livro de Base.", NamedTextColor.YELLOW));
+    }
+
+    /** Apaga a construção: tudo acima do solo natural + blocos colocados. Sem relevo salvo, limpa a caixa. */
+    private void clearConstruction(World w, Claim claim) {
+        int[] ground = claim.ground();
+        int width = claim.maxX() - claim.minX() + 1;
+        int depth = claim.maxZ() - claim.minZ() + 1;
+        if (ground != null && ground.length == width * depth) {
+            for (int rx = 0; rx < width; rx++) {
+                for (int rz = 0; rz < depth; rz++) {
+                    for (int y = ground[rx * depth + rz] + 1; y <= claim.maxY(); y++) {
+                        clearAir(w, claim.minX() + rx, y, claim.minZ() + rz);
+                    }
+                }
+            }
+            for (int key : claim.placed()) { // blocos colocados ao nível/abaixo do solo
+                clearAir(w, claim.minX() + ((key >> 6) & 0x3F), claim.minY() + (key >> 12),
+                        claim.minZ() + (key & 0x3F));
+            }
+        } else {
+            // Base antiga (sem relevo salvo): limpa a caixa inteira.
+            for (int x = claim.minX(); x <= claim.maxX(); x++) {
+                for (int z = claim.minZ(); z <= claim.maxZ(); z++) {
+                    for (int y = claim.minY(); y <= claim.maxY(); y++) {
+                        clearAir(w, x, y, z);
+                    }
+                }
+            }
+        }
+    }
+
+    private void clearAir(World w, int x, int y, int z) {
+        Block b = w.getBlockAt(x, y, z);
+        if (!b.getType().isAir()) {
+            b.setType(Material.AIR, false);
+        }
     }
 
     /** Mostra as 4 extremidades da base por alguns segundos, só na tela do jogador. */
@@ -421,6 +541,79 @@ public class ClaimManager {
         this.markerBlock = m != null ? m : Material.GLOWSTONE;
         Material n = Material.matchMaterial(c.getString("nucleo-block", "LODESTONE"));
         this.nucleoBlock = n != null ? n : Material.LODESTONE;
+        this.heightMaxUpgrades = Math.max(0, c.getInt("upgrades.height.max", 4));
+        this.heightBlocks = Math.max(1, c.getInt("upgrades.height.blocks", 4));
+        this.heightCostXp = Math.max(0, c.getInt("upgrades.height.cost-xp", 100));
+        this.chestMaxUpgrades = Math.max(0, c.getInt("upgrades.chest.max", 20));
+        this.chestCostXp = Math.max(0, c.getInt("upgrades.chest.cost-xp", 50));
+        this.baseChests = Math.max(0, c.getInt("chests.base", 4));
+        this.chestsPerUpgrade = Math.max(1, c.getInt("chests.per-upgrade", 2));
+    }
+
+    public int heightMaxUpgrades() {
+        return heightMaxUpgrades;
+    }
+
+    public int heightBlocks() {
+        return heightBlocks;
+    }
+
+    public int heightCostXp() {
+        return heightCostXp;
+    }
+
+    public int chestMaxUpgrades() {
+        return chestMaxUpgrades;
+    }
+
+    public int chestCostXp() {
+        return chestCostXp;
+    }
+
+    public boolean upgradeHeight(Player player, Claim claim) {
+        if (claim.heightUpgrades() >= heightMaxUpgrades) {
+            player.sendActionBar(Component.text("Altura já no máximo.", NamedTextColor.GRAY));
+            return false;
+        }
+        if (!spendXp(player, heightCostXp)) {
+            return false;
+        }
+        claim.setMaxY(claim.maxY() + heightBlocks);
+        claim.setHeightUpgrades(claim.heightUpgrades() + 1);
+        saveClaims();
+        player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.4f);
+        return true;
+    }
+
+    public boolean upgradeChests(Player player, Claim claim) {
+        if (claim.chestUpgrades() >= chestMaxUpgrades) {
+            player.sendActionBar(Component.text("Já no máximo de baús.", NamedTextColor.GRAY));
+            return false;
+        }
+        if (!spendXp(player, chestCostXp)) {
+            return false;
+        }
+        claim.setChestUpgrades(claim.chestUpgrades() + 1);
+        saveClaims();
+        giveChests(player, chestsPerUpgrade); // entrega os baús extras
+        player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.4f);
+        return true;
+    }
+
+    private boolean spendXp(Player player, int cost) {
+        if (cost <= 0) {
+            return true;
+        }
+        PlayerProfile p = plugin.getProfileManager().get(player.getUniqueId());
+        if (p == null) {
+            return false;
+        }
+        if (p.getXp() < cost) {
+            player.sendActionBar(Component.text("XP insuficiente (precisa de " + cost + ").", NamedTextColor.RED));
+            return false;
+        }
+        p.setXp(p.getXp() - cost);
+        return true;
     }
 
     private void loadClaims() {
@@ -457,6 +650,22 @@ public class ClaimManager {
                         }
                     }
                 }
+                String placedStr = cfg.getString(key + ".placed");
+                if (placedStr != null) {
+                    ByteBuffer pb = ByteBuffer.wrap(Base64.getDecoder().decode(placedStr));
+                    while (pb.remaining() >= 4) {
+                        claim.placed().add(pb.getInt());
+                    }
+                }
+                String groundStr = cfg.getString(key + ".ground");
+                if (groundStr != null) {
+                    ByteBuffer gb = ByteBuffer.wrap(Base64.getDecoder().decode(groundStr));
+                    int[] g = new int[gb.remaining() / 4];
+                    for (int i = 0; i < g.length; i++) {
+                        g[i] = gb.getInt();
+                    }
+                    claim.setGround(g);
+                }
                 claims.put(uuid, claim);
             } catch (IllegalArgumentException ignored) {
                 // chave inválida
@@ -483,9 +692,24 @@ public class ClaimManager {
             for (Map.Entry<UUID, java.util.Set<String>> e : c.members().entrySet()) {
                 cfg.set(base + ".members." + e.getKey(), new ArrayList<>(e.getValue()));
             }
+            if (!c.placed().isEmpty()) {
+                ByteBuffer buf = ByteBuffer.allocate(c.placed().size() * 4);
+                for (int k : c.placed()) {
+                    buf.putInt(k);
+                }
+                cfg.set(base + ".placed", Base64.getEncoder().encodeToString(buf.array()));
+            }
+            if (c.ground() != null) {
+                ByteBuffer gb = ByteBuffer.allocate(c.ground().length * 4);
+                for (int g : c.ground()) {
+                    gb.putInt(g);
+                }
+                cfg.set(base + ".ground", Base64.getEncoder().encodeToString(gb.array()));
+            }
         }
         try {
             cfg.save(dataFile);
+            dirty = false;
         } catch (IOException ex) {
             plugin.getLogger().warning("Falha ao salvar claims.yml: " + ex.getMessage());
         }

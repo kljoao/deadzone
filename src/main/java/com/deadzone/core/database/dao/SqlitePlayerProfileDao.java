@@ -1,6 +1,7 @@
 package com.deadzone.core.database.dao;
 
 import com.deadzone.core.database.Database;
+import com.deadzone.core.profile.DownedState;
 import com.deadzone.core.profile.PlayerClass;
 import com.deadzone.core.profile.PlayerProfile;
 import com.deadzone.core.profile.ProfileSnapshot;
@@ -16,8 +17,9 @@ public class SqlitePlayerProfileDao implements PlayerProfileDao {
 
     private static final String UPSERT_PLAYER = """
         INSERT INTO players
-            (uuid, name, infected, infection_level, sanity, player_class, xp, total_xp_earned, first_join, last_seen)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (uuid, name, infected, infection_level, sanity, player_class, xp, total_xp_earned,
+             first_join, last_seen, downed_until)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(uuid) DO UPDATE SET
             name            = excluded.name,
             infected        = excluded.infected,
@@ -26,7 +28,8 @@ public class SqlitePlayerProfileDao implements PlayerProfileDao {
             player_class    = excluded.player_class,
             xp              = excluded.xp,
             total_xp_earned = excluded.total_xp_earned,
-            last_seen       = excluded.last_seen
+            last_seen       = excluded.last_seen,
+            downed_until    = excluded.downed_until
         """;
 
     private final Database database;
@@ -55,6 +58,10 @@ public class SqlitePlayerProfileDao implements PlayerProfileDao {
                     profile.setTotalXpEarned(rs.getLong("total_xp_earned"));
                     profile.setFirstJoin(rs.getLong("first_join"));
                     profile.setLastSeen(rs.getLong("last_seen"));
+                    long downedUntil = rs.getLong("downed_until");
+                    if (downedUntil > System.currentTimeMillis()) {
+                        profile.setDownedState(new DownedState(System.currentTimeMillis(), downedUntil));
+                    }
                 }
             }
 
@@ -151,6 +158,7 @@ public class SqlitePlayerProfileDao implements PlayerProfileDao {
             ps.setLong(8, snap.totalXpEarned());
             ps.setLong(9, snap.firstJoin());
             ps.setLong(10, snap.lastSeen());
+            ps.setLong(11, snap.downedUntil());
             ps.executeUpdate();
         }
     }

@@ -27,7 +27,7 @@ public class PlayerProfile {
     private long firstJoin;
     private long lastSeen;
 
-    // estado transitório (NÃO persistir)
+    // estado transitório; downedState persiste só o expiresAt (downed_until) p/ sobreviver ao relog
     private transient DownedState downedState;
     private transient BleedState bleedState;
     private transient long lastDamageByZombie;
@@ -84,6 +84,7 @@ public class PlayerProfile {
                 totalXpEarned,
                 firstJoin,
                 lastSeen,
+                downedState != null ? downedState.getExpiresAt() : 0L,
                 new HashSet<>(unlockedSkills)
         );
     }
@@ -209,6 +210,7 @@ public class PlayerProfile {
 
     public void setDownedState(DownedState downedState) {
         this.downedState = downedState;
+        this.dirty = true; // persistido (downed_until) p/ sobreviver ao relog
     }
 
     public BleedState getBleedState() {
