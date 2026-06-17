@@ -122,6 +122,11 @@ public class MedicineManager {
                 .put(itemId, System.currentTimeMillis() + seconds * 1000L);
     }
 
+    /** Remove os cooldowns de um jogador ao sair (senão o mapa cresce sem limite). */
+    public void removeCooldowns(UUID uuid) {
+        cooldowns.remove(uuid);
+    }
+
     /** Itens que este jogador pode fabricar agora (têm receita e a skill exigida, se houver). */
     public List<ItemDefinition> craftableFor(Player player) {
         PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());
@@ -138,6 +143,26 @@ public class MedicineManager {
         return out;
     }
 
+    /** Itens (com receita) de uma categoria/aba. Inclui os bloqueados — a bancada os mostra em cinza. */
+    public List<ItemDefinition> byCategory(String category) {
+        List<ItemDefinition> out = new ArrayList<>();
+        for (ItemDefinition def : itemsConfig.all()) {
+            if (def.hasRecipe() && def.category().equalsIgnoreCase(category)) {
+                out.add(def);
+            }
+        }
+        return out;
+    }
+
+    /** O jogador tem a skill exigida para fabricar este item? */
+    public boolean hasSkillFor(Player player, ItemDefinition def) {
+        if (def.requiredSkill() == null) {
+            return true;
+        }
+        PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());
+        return profile != null && profile.hasSkill(def.requiredSkill());
+    }
+
     public CraftResult craft(Player player, ItemDefinition def) {
         if (!def.hasRecipe()) {
             return CraftResult.MISSING_INGREDIENTS;
@@ -145,6 +170,12 @@ public class MedicineManager {
         PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());
         if (def.requiredSkill() != null && (profile == null || !profile.hasSkill(def.requiredSkill()))) {
             return CraftResult.NO_SKILL;
+        }
+        // Resolve o produto ANTES de consumir ingredientes (se não estiver registrado, não gasta nada).
+        CustomItem product = plugin.getItemRegistry().get(def.id());
+        if (product == null) {
+            plugin.getLogger().warning("Item '" + def.id() + "' sem registro — receita ignorada.");
+            return CraftResult.MISSING_INGREDIENTS;
         }
         for (Map.Entry<String, Integer> entry : def.recipe().entrySet()) {
             if (countIngredient(player, entry.getKey()) < entry.getValue()) {
@@ -154,7 +185,7 @@ public class MedicineManager {
         for (Map.Entry<String, Integer> entry : def.recipe().entrySet()) {
             removeMatching(player, matcher(entry.getKey()), entry.getValue());
         }
-        ItemStack result = plugin.getItemRegistry().get(def.id()).build();
+        ItemStack result = product.build();
         Map<Integer, ItemStack> leftover = player.getInventory().addItem(result);
         leftover.values().forEach(stack -> player.getWorld().dropItemNaturally(player.getLocation(), stack));
         return CraftResult.SUCCESS;

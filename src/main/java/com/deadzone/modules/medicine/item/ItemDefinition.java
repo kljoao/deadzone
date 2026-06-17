@@ -15,6 +15,7 @@ public record ItemDefinition(
         int modelData,
         Tier tier,
         String requiredSkill, // null = craftável por todos
+        String category,      // "medica" | "armeiro" (aba da bancada)
         Map<String, Object> use,
         Map<String, Integer> recipe // chave = id de item custom OU nome de Material
 ) {

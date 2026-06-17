@@ -3,6 +3,7 @@ package com.deadzone.modules.classes;
 import com.deadzone.DeadzonePlugin;
 import com.deadzone.core.config.ConfigManager;
 import com.deadzone.core.profile.PlayerClass;
+import com.deadzone.modules.classes.gui.ClassMenu;
 import com.deadzone.core.profile.PlayerProfile;
 import com.deadzone.core.scheduler.TickService;
 import com.deadzone.modules.classes.downed.DownedListener;
@@ -50,6 +51,17 @@ public class ClassManager {
         // Restaura o estado "Derrubado" ao logar (sobrevive ao relog).
         plugin.getProfileManager().onProfileLoaded((player, profile) -> downedManager.restore(player, profile));
 
+        // Sem classe ao logar: abre o menu QUANDO o perfil termina de carregar (sem delay-chute/race).
+        plugin.getProfileManager().onProfileLoaded((player, profile) -> {
+            if (profile.getPlayerClass() == PlayerClass.NONE) {
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (player.isOnline() && profile.getPlayerClass() == PlayerClass.NONE) {
+                        new ClassMenu(plugin).open(player);
+                    }
+                });
+            }
+        });
+
         tickService.registerSecondHandler(this::diagnosisTick);
 
         plugin.getItemRegistry().register(new RadioFrequencia(plugin));
@@ -86,6 +98,17 @@ public class ClassManager {
         player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.2f);
         player.sendMessage(Component.text("Classe escolhida: ", NamedTextColor.GRAY)
                 .append(Component.text(clazz.name(), NamedTextColor.GOLD)));
+    }
+
+    /** Troca de classe: ZERA o XP e as habilidades (penalidade) e define a nova classe. */
+    public void changeClass(Player player, PlayerProfile profile, PlayerClass clazz) {
+        profile.setXp(0);
+        new java.util.ArrayList<>(profile.getUnlockedSkills()).forEach(profile::lockSkill);
+        profile.setPlayerClass(clazz);
+        player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.0f);
+        player.sendMessage(Component.text("Classe trocada para ", NamedTextColor.GRAY)
+                .append(Component.text(clazz.name(), NamedTextColor.GOLD))
+                .append(Component.text(" — XP e habilidades zerados.", NamedTextColor.RED)));
     }
 
     public void grantXp(Player player, PlayerProfile profile, long amount, String reason) {

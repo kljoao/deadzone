@@ -34,6 +34,11 @@ public class AddMembroMenu extends Menu {
 
     @Override
     protected void build(Player viewer) {
+        if (!claim.owner().equals(viewer.getUniqueId())) {
+            viewer.closeInventory();
+            viewer.sendActionBar(Component.text("Apenas o dono da base pode fazer isso.", NamedTextColor.RED));
+            return;
+        }
         int slot = 0;
         for (Player online : plugin.getServer().getOnlinePlayers()) {
             if (online.getUniqueId().equals(claim.owner()) || claim.isMember(online.getUniqueId())) {

@@ -10,6 +10,11 @@ spawn-control:
     - HUSK
     - DROWNED
     - ZOMBIE_VILLAGER
+  # Bloquear também mobs NÃO-hostis (animais, ambiente, neutros)? true = mundo só-zumbi.
+  # Spawns do plugin (CUSTOM/ignored-reasons) nunca são afetados.
+  block-passive: true
+  # Exceções ao block-passive: tipos passivos/neutros que AINDA podem spawnar (ex.: VILLAGER).
+  allowed-passive: []
   # Razões de spawn que IGNORAM o bloqueio (deixam passar qualquer mob).
   # CUSTOM = spawns do próprio plugin; COMMAND/SPAWN_EGG = admin/testes.
   ignored-reasons:
@@ -26,8 +31,8 @@ zombies:
   no-baby: true
 
   # Multiplicador de velocidade de MOVIMENTO dos zumbis (1.0 = normal).
-  # 1.15 = 15% mais rapidos. (A velocidade de ATAQUE e fixa do vanilla.)
-  speed-multiplier: 1.15
+  # 1.05 = 5% mais rapidos. (A velocidade de ATAQUE e fixa do vanilla.)
+  speed-multiplier: 1.05
 
   # Spawn de zumbis DURANTE O DIA na superfície, ao redor dos jogadores.
   day-spawn:

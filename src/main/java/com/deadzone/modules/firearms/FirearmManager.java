@@ -23,16 +23,20 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Snowball;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.components.FoodComponent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -47,10 +51,16 @@ public class FirearmManager {
     private final Map<UUID, Double> recoilHeat = new HashMap<>();
     private final Map<UUID, Long> meleeCooldown = new HashMap<>();
     private final Map<UUID, Long> drawUntil = new HashMap<>();
+    private final Map<UUID, BukkitTask> autoTasks = new HashMap<>();
+    private final Map<UUID, Integer> burstAmmo = new HashMap<>(); // munição "ao vivo" durante a rajada
+    private final Set<UUID> aiming = new HashSet<>(); // jogadores mirando (ADS = Slowness)
     private final Map<String, AmmoType> ammoTypes = new LinkedHashMap<>();
+    private FirearmSkinsConfig skinsConfig;
     private boolean enabled;
 
     private static final int DRAW_OFFSET = 100;
+    // Mira com luneta: Slowness altíssima = jogador imóvel e zoom no máximo (sniper).
+    private static final int SCOPE_ADS_AMPLIFIER = 250;
     private static final Particle.DustOptions TRACER = new Particle.DustOptions(Color.fromRGB(255, 235, 160), 0.6f);
 
     public FirearmManager(DeadzonePlugin plugin, ConfigManager configManager) {
@@ -60,6 +70,7 @@ public class FirearmManager {
 
     public void enable(TickService tickService) {
         load();
+        this.skinsConfig = new FirearmSkinsConfig(plugin, configManager);
         for (String id : types.keySet()) {
             plugin.getItemRegistry().register(new FirearmItem(plugin, this, id));
         }
@@ -72,6 +83,13 @@ public class FirearmManager {
 
     public void reload() {
         load();
+        if (skinsConfig != null) {
+            skinsConfig.load();
+        }
+    }
+
+    public FirearmSkinsConfig skins() {
+        return skinsConfig;
     }
 
     public boolean enabled() {
@@ -82,44 +100,282 @@ public class FirearmManager {
         return types.get(id);
     }
 
-    public void shoot(Player player, FirearmItem item, ItemStack gun) {
+    /** @return true se o evento de clique deve ser cancelado (semi). No auto retorna false p/ deixar o "uso" começar. */
+    public boolean shoot(Player player, FirearmItem item, ItemStack gun) {
         if (!enabled) {
-            return;
+            return true;
         }
         FirearmType type = item.type();
         if (type == null) {
-            return;
+            return true;
+        }
+        // Modo automático: segurar o botão direito = rajada (detecta via mão levantada / "uso" do item).
+        if (type.automatic() && readFireMode(gun) == FireMode.AUTO) {
+            startHoldFire(player, item);
+            return false; // NÃO cancela: deixa o "uso" (mordida) iniciar p/ detectar o segurar.
+        }
+        // Semiauto: 1 clique = 1 tiro. Se a arma ficou com o componente de "comida" (resíduo do modo
+        // auto), tira aqui: senão segurar o direito re-inicia a "mordida" e dispara mais de um tiro.
+        if (gun.hasItemMeta() && gun.getItemMeta().hasFood()) {
+            gun.editMeta(m -> m.setFood(null));
+            player.getInventory().setItemInMainHand(gun);
         }
         UUID uuid = player.getUniqueId();
         long now = System.currentTimeMillis();
-        if (now < drawUntil.getOrDefault(uuid, 0L)) {
-            return;
-        }
-        if (now < reloadingUntil.getOrDefault(uuid, 0L)) {
-            return;
-        }
         Long last = lastShot.get(uuid);
         if (last != null && now - last < type.fireCooldownMs()) {
-            return;
+            return true;
+        }
+        fireOnce(player, item, gun);
+        return true;
+    }
+
+    /** Semiauto: dispara 1 tiro (checa saque/recarga/munição). Grava a munição no item. */
+    private boolean fireOnce(Player player, FirearmItem item, ItemStack gun) {
+        FirearmType type = item.type();
+        if (type == null) {
+            return false;
+        }
+        UUID uuid = player.getUniqueId();
+        long now = System.currentTimeMillis();
+        if (now < drawUntil.getOrDefault(uuid, 0L) || now < reloadingUntil.getOrDefault(uuid, 0L)) {
+            return false;
         }
         int ammo = readAmmo(gun, type);
         if (ammo <= 0) {
             startReload(player, item, gun);
-            return;
+            return false;
         }
-        double spread = nextSpread(uuid, type, now, last);
+        double spread = nextSpread(uuid, type, now, lastShot.get(uuid));
         lastShot.put(uuid, now);
         ammo--;
         writeAmmo(gun, ammo);
         player.getInventory().setItemInMainHand(gun);
+        fireShot(player, type, spread);
+        showAmmo(player, type, ammo);
+        if (ammo == 0) {
+            startReload(player, item, gun);
+            return false;
+        }
+        return true;
+    }
 
+    /** Efeitos de um disparo: projétil + som + barulho. Não mexe em munição. */
+    private void fireShot(Player player, FirearmType type, double spread) {
         fireProjectile(player, type, spread);
         player.getWorld().playSound(player.getLocation(), type.soundShoot(), SoundCategory.PLAYERS, 1.4f, 1f);
         plugin.getNoiseManager().report(player, type.noise(), type.noiseRadius());
-        showAmmo(player, type, ammo);
+    }
 
-        if (ammo == 0) {
+    // ---- Seletor de modo de disparo (semi/auto) ----
+
+    enum FireMode {SEMI, AUTO}
+
+    private FireMode readFireMode(ItemStack gun) {
+        if (gun == null || !gun.hasItemMeta()) {
+            return FireMode.SEMI;
+        }
+        String v = gun.getItemMeta().getPersistentDataContainer()
+                .get(ItemKeys.FIREARM_MODE, PersistentDataType.STRING);
+        return "AUTO".equals(v) ? FireMode.AUTO : FireMode.SEMI;
+    }
+
+    /** Alterna semi/auto (só p/ armas automáticas). Disparado por sneak + F. */
+    public void toggleFireMode(Player player, FirearmItem item, ItemStack gun) {
+        FirearmType type = item.type();
+        if (type == null || !type.automatic()) {
+            return;
+        }
+        FireMode next = readFireMode(gun) == FireMode.SEMI ? FireMode.AUTO : FireMode.SEMI;
+        boolean auto = next == FireMode.AUTO;
+        gun.editMeta(meta -> {
+            meta.getPersistentDataContainer().set(ItemKeys.FIREARM_MODE, PersistentDataType.STRING, next.name());
+            applyAutoFood(meta, auto);
+        });
+        player.getInventory().setItemInMainHand(gun);
+        if (!auto) {
+            endBurst(player.getUniqueId());
+        }
+        player.sendActionBar(Component.text("Modo: " + (auto ? "Automático ⟶ rajada" : "Semiauto"),
+                auto ? NamedTextColor.GOLD : NamedTextColor.AQUA));
+        player.playSound(player, Sound.UI_BUTTON_CLICK, 0.8f, auto ? 1.5f : 0.7f);
+    }
+
+    /**
+     * Rajada enquanto segura o botão direito. O modo AUTO marca a arma como "consumível"
+     * (componente de comida), então segurar o direito mantém a mão levantada
+     * ({@link Player#isHandRaised()}); o loop dispara enquanto isso for verdade.
+     */
+    private void startHoldFire(Player player, FirearmItem item) {
+        UUID uuid = player.getUniqueId();
+        if (autoTasks.containsKey(uuid)) {
+            return; // já metralhando
+        }
+        FirearmType type = item.type();
+        // Munição "ao vivo" da rajada: lê 1x e mantém em memória. NÃO mexer no item durante o segurar,
+        // senão o update de slot cancela o "uso" (comer) -> a mão abaixa -> a rajada para.
+        burstAmmo.put(uuid, readAmmo(player.getInventory().getItemInMainHand(), type));
+        long cooldown = Math.max(1L, type.fireCooldownMs());
+        BukkitTask task = new BukkitRunnable() {
+            boolean firstTick = true;
+            long nextShot = 0L;
+
+            @Override
+            public void run() {
+                if (!player.isOnline()) {
+                    endBurst(uuid);
+                    return;
+                }
+                ItemStack gun = player.getInventory().getItemInMainHand();
+                if (plugin.getItemRegistry().resolve(gun).filter(ci -> ci.id().equals(item.id())).isEmpty()
+                        || readFireMode(gun) != FireMode.AUTO) {
+                    endBurst(uuid);
+                    return;
+                }
+                // No 1º tick a mão pode ainda não ter subido (mesmo tick do clique): solta 1 tiro.
+                // Nos seguintes, só continua enquanto o jogador estiver segurando (mão levantada).
+                if (!firstTick && !player.isHandRaised()) {
+                    endBurst(uuid);
+                    return;
+                }
+                long now = System.currentTimeMillis();
+                if (firstTick) {
+                    nextShot = now; // 1º tiro imediato; evita "esvaziar o pente de uma vez"
+                    firstTick = false;
+                }
+                if (now < drawUntil.getOrDefault(uuid, 0L) || now < reloadingUntil.getOrDefault(uuid, 0L)) {
+                    endBurst(uuid);
+                    return;
+                }
+                // Dispara todos os tiros já "agendados" até agora (catch-up p/ acertar a cadência no grid de ticks).
+                while (now >= nextShot) {
+                    int ammo = burstAmmo.getOrDefault(uuid, 0);
+                    if (ammo <= 0) {
+                        endBurst(uuid);
+                        startReloadHeld(player, item);
+                        return;
+                    }
+                    double spread = nextSpread(uuid, type, now, lastShot.get(uuid));
+                    lastShot.put(uuid, now);
+                    ammo--;
+                    burstAmmo.put(uuid, ammo);
+                    fireShot(player, type, spread);
+                    showAmmo(player, type, ammo);
+                    nextShot += cooldown;
+                    if (ammo == 0) {
+                        endBurst(uuid);
+                        startReloadHeld(player, item);
+                        return;
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+        autoTasks.put(uuid, task);
+    }
+
+    /** Encerra a rajada: cancela o loop e grava a munição restante de volta na arma. */
+    private void endBurst(UUID uuid) {
+        BukkitTask t = autoTasks.remove(uuid);
+        if (t != null) {
+            t.cancel();
+        }
+        Integer ammo = burstAmmo.remove(uuid);
+        if (ammo == null) {
+            return;
+        }
+        Player player = plugin.getServer().getPlayer(uuid);
+        if (player == null) {
+            return;
+        }
+        ItemStack gun = player.getInventory().getItemInMainHand();
+        if (plugin.getItemRegistry().resolve(gun).filter(ci -> ci instanceof FirearmItem).isPresent()) {
+            writeAmmo(gun, ammo);
+            player.getInventory().setItemInMainHand(gun);
+        }
+    }
+
+    private void startReloadHeld(Player player, FirearmItem item) {
+        ItemStack gun = player.getInventory().getItemInMainHand();
+        if (plugin.getItemRegistry().resolve(gun).filter(ci -> ci.id().equals(item.id())).isPresent()) {
             startReload(player, item, gun);
+        }
+    }
+
+    // ---- Mira (ADS): Slowness sem partículas. Lunetas só dão mais zoom (amplifier maior). ----
+
+    /** Alterna a mira: Slowness (aproxima o FOV) sem partículas. A luneta aproxima mais. */
+    public void toggleAds(Player player) {
+        PotionEffectType slowness = Registry.EFFECT.get(NamespacedKey.minecraft("slowness"));
+        if (slowness == null) {
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        if (aiming.remove(uuid)) {
+            player.removePotionEffect(slowness);
+            player.playSound(player, Sound.ITEM_SPYGLASS_STOP_USING, 0.5f, 1.5f);
+        } else {
+            aiming.add(uuid);
+            // O zoom vem da redução de velocidade (FOV): quanto mais lento, mais perto. Só o zoom
+            // (sem partículas/ícone/overlay) — Slowness invisível. Com luneta: amplificador altíssimo
+            // = jogador IMÓVEL + zoom no máximo (o FOV trava no piso da velocidade = ~2x). Sem luneta:
+            // zoom leve e ainda podendo andar.
+            int amplifier = scopeInHand(player) ? SCOPE_ADS_AMPLIFIER : 3;
+            player.addPotionEffect(new PotionEffect(slowness, PotionEffect.INFINITE_DURATION, amplifier, false, false, false));
+            player.playSound(player, Sound.ITEM_SPYGLASS_USE, 0.5f, 1.5f);
+        }
+    }
+
+    /**
+     * Limpa TODO o estado por-jogador (morte, saída, troca de mundo): cancela a rajada, tira a
+     * mira e zera todos os timers. Também evita o crescimento sem-fim dos mapas por-UUID.
+     */
+    public void clearPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+        endBurst(uuid);   // cancela a task de rajada + remove burstAmmo
+        clearAds(player); // remove Slowness + aiming
+        lastShot.remove(uuid);
+        reloadingUntil.remove(uuid);
+        recoilHeat.remove(uuid);
+        meleeCooldown.remove(uuid);
+        drawUntil.remove(uuid);
+    }
+
+    /** Zera o recuo/cadência acumulados (ao trocar de arma): o "calor" de uma não vaza pra outra. */
+    public void resetSpread(Player player) {
+        UUID uuid = player.getUniqueId();
+        recoilHeat.remove(uuid);
+        lastShot.remove(uuid);
+    }
+
+    /** Remove a mira (ao trocar de item, guardar a arma, etc.). */
+    public void clearAds(Player player) {
+        if (aiming.remove(player.getUniqueId())) {
+            PotionEffectType slowness = Registry.EFFECT.get(NamespacedKey.minecraft("slowness"));
+            if (slowness != null) {
+                player.removePotionEffect(slowness);
+            }
+        }
+    }
+
+    private boolean scopeInHand(Player player) {
+        return plugin.getItemRegistry().resolve(player.getInventory().getItemInMainHand())
+                .filter(ci -> ci instanceof FirearmItem)
+                .map(ci -> ((FirearmItem) ci).type())
+                .map(t -> t != null && t.scope())
+                .orElse(false);
+    }
+
+    /** Liga/desliga o componente de "comida" — usado só p/ detectar o segurar do botão direito no modo AUTO. */
+    private void applyAutoFood(org.bukkit.inventory.meta.ItemMeta meta, boolean auto) {
+        if (auto) {
+            FoodComponent food = meta.getFood();
+            food.setCanAlwaysEat(true);
+            food.setEatSeconds(86400f); // nunca termina: dá pra segurar indefinidamente
+            food.setNutrition(0);
+            food.setSaturation(0);
+            meta.setFood(food);
+        } else {
+            meta.setFood(null);
         }
     }
 
@@ -265,7 +521,7 @@ public class FirearmManager {
         if (gun == null) {
             return;
         }
-        int base = type.customModelData();
+        int base = effectiveBase(gun, type); // respeita a skin (CMD da skin como base do saque)
         setModelData(gun, base + DRAW_OFFSET);
         player.getInventory().setItem(slot, gun);
 
@@ -297,11 +553,88 @@ public class FirearmManager {
     }
 
     private Integer baseOf(ItemStack gun) {
+        Integer skin = skinCmd(gun);
+        if (skin != null) {
+            return skin;
+        }
         return plugin.getItemRegistry().resolve(gun)
                 .filter(ci -> ci instanceof FirearmItem)
                 .map(ci -> ((FirearmItem) ci).type())
                 .map(t -> t == null ? null : t.customModelData())
                 .orElse(null);
+    }
+
+    /** CMD base efetiva: a da skin, se houver; senão a do tipo da arma. */
+    private int effectiveBase(ItemStack gun, FirearmType type) {
+        Integer skin = skinCmd(gun);
+        return skin != null ? skin : type.customModelData();
+    }
+
+    private Integer skinCmd(ItemStack gun) {
+        if (gun == null || !gun.hasItemMeta()) {
+            return null;
+        }
+        var pdc = gun.getItemMeta().getPersistentDataContainer();
+        Integer cmd = pdc.get(ItemKeys.FIREARM_SKIN_CMD, PersistentDataType.INTEGER);
+        if (cmd == null) {
+            return null;
+        }
+        // Se a skin foi removida do gun-skins.yml, ignora o PDC órfão e volta ao modelo base.
+        String skinId = pdc.get(ItemKeys.FIREARM_SKIN_ID, PersistentDataType.STRING);
+        if (skinsConfig == null || skinsConfig.get(skinId) == null) {
+            return null;
+        }
+        return cmd;
+    }
+
+    // ----- skins cosméticas (aplicadas à arma na mão) -----
+
+    /** Aplica uma skin à arma na mão (mantém munição/atributos; só troca o modelo). */
+    public void applySkin(Player player, String skinId) {
+        ItemStack gun = player.getInventory().getItemInMainHand();
+        FirearmItem item = plugin.getItemRegistry().resolve(gun)
+                .filter(ci -> ci instanceof FirearmItem).map(ci -> (FirearmItem) ci).orElse(null);
+        if (item == null) {
+            player.sendMessage(Component.text("Segure a arma que você quer skinar.", NamedTextColor.RED));
+            return;
+        }
+        FirearmSkin skin = skinsConfig != null ? skinsConfig.get(skinId) : null;
+        if (skin == null) {
+            player.sendMessage(Component.text("Skin '" + skinId + "' não existe.", NamedTextColor.RED));
+            return;
+        }
+        if (!skin.firearmId().equalsIgnoreCase(item.id())) {
+            player.sendMessage(Component.text("Essa skin é para a arma '" + skin.firearmId() + "'.",
+                    NamedTextColor.RED));
+            return;
+        }
+        gun.editMeta(meta -> {
+            meta.setCustomModelData(skin.modelData());
+            meta.getPersistentDataContainer().set(ItemKeys.FIREARM_SKIN_CMD, PersistentDataType.INTEGER, skin.modelData());
+            meta.getPersistentDataContainer().set(ItemKeys.FIREARM_SKIN_ID, PersistentDataType.STRING, skin.id());
+        });
+        player.getInventory().setItemInMainHand(gun);
+        player.sendMessage(Component.text("Skin aplicada: ", NamedTextColor.GREEN)
+                .append(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(skin.display())));
+    }
+
+    /** Remove a skin da arma na mão, voltando ao modelo padrão. */
+    public void removeSkin(Player player) {
+        ItemStack gun = player.getInventory().getItemInMainHand();
+        FirearmItem item = plugin.getItemRegistry().resolve(gun)
+                .filter(ci -> ci instanceof FirearmItem).map(ci -> (FirearmItem) ci).orElse(null);
+        if (item == null || item.type() == null) {
+            player.sendMessage(Component.text("Segure a arma de onde remover a skin.", NamedTextColor.RED));
+            return;
+        }
+        int base = item.type().customModelData();
+        gun.editMeta(meta -> {
+            meta.setCustomModelData(base);
+            meta.getPersistentDataContainer().remove(ItemKeys.FIREARM_SKIN_CMD);
+            meta.getPersistentDataContainer().remove(ItemKeys.FIREARM_SKIN_ID);
+        });
+        player.getInventory().setItemInMainHand(gun);
+        player.sendMessage(Component.text("Skin removida — arma voltou ao padrão.", NamedTextColor.GRAY));
     }
 
     private boolean isDrawing(ItemStack gun, int base) {
@@ -377,11 +710,13 @@ public class FirearmManager {
     }
 
     private int readAmmo(ItemStack gun, FirearmType type) {
+        // PDC ausente = arma malformada (não passou pelo build()): trata como vazia (recarrega),
+        // em vez de "pente cheio" — senão viraria munição infinita no 1º equip.
         if (!gun.hasItemMeta()) {
-            return type.magazineSize();
+            return 0;
         }
         Integer v = gun.getItemMeta().getPersistentDataContainer().get(ItemKeys.FIREARM_AMMO, PersistentDataType.INTEGER);
-        return v == null ? type.magazineSize() : v;
+        return v == null ? 0 : v;
     }
 
     private void writeAmmo(ItemStack gun, int ammo) {
@@ -442,6 +777,7 @@ public class FirearmManager {
         ItemStack main = player.getInventory().getItemInMainHand();
         Optional<CustomItem> resolved = plugin.getItemRegistry().resolve(main);
         if (resolved.isEmpty() || !(resolved.get() instanceof FirearmItem firearm)) {
+            clearAds(player); // sem arma na mão -> tira a mira
             return;
         }
         FirearmType type = firearm.type();
@@ -455,12 +791,18 @@ public class FirearmManager {
         } else if (now < reloadingUntil.getOrDefault(uuid, 0L)) {
             player.sendActionBar(Component.text("Recarregando...", NamedTextColor.YELLOW));
         } else {
-            player.sendActionBar(hudLine(uuid, type, readAmmo(main, type)));
+            int ammo = burstAmmo.containsKey(uuid) ? burstAmmo.get(uuid) : readAmmo(main, type);
+            player.sendActionBar(hudLine(uuid, type, ammo, main));
         }
     }
 
-    private Component hudLine(UUID uuid, FirearmType type, int ammo) {
+    private Component hudLine(UUID uuid, FirearmType type, int ammo, ItemStack gun) {
         Component line = ammoComponent(type, ammo);
+        if (type.automatic()) {
+            boolean auto = readFireMode(gun) == FireMode.AUTO;
+            line = line.append(Component.text("  [" + (auto ? "AUTO" : "SEMI") + "]",
+                    auto ? NamedTextColor.GOLD : NamedTextColor.AQUA));
+        }
         long remaining = meleeCooldown.getOrDefault(uuid, 0L) - System.currentTimeMillis();
         if (remaining > 0) {
             line = line.append(Component.text("   coronhada: " + ((remaining + 999) / 1000) + "s", NamedTextColor.GRAY));
@@ -521,7 +863,9 @@ public class FirearmManager {
                     s.getString("sound-shoot", "deadzone:firearm.g17.shoot"),
                     s.getString("sound-reload", "deadzone:firearm.g17.reload"),
                     s.getDouble("noise", 30.0),
-                    s.getInt("noise-radius", 40)));
+                    s.getInt("noise-radius", 40),
+                    s.getBoolean("automatic", false),
+                    s.getBoolean("scope", false)));
         }
     }
 }

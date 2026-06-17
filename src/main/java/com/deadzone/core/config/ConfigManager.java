@@ -66,6 +66,35 @@ public class ConfigManager {
         return Math.max(1, config.getInt("database.pool-size", 4));
     }
 
+    /** "sqlite" (padrao) ou "postgresql". */
+    public String dbType() {
+        return config.getString("database.type", "sqlite").trim().toLowerCase();
+    }
+
+    public String pgHost() {
+        return config.getString("database.postgresql.host", "localhost");
+    }
+
+    public int pgPort() {
+        return config.getInt("database.postgresql.port", 5432);
+    }
+
+    public String pgDatabase() {
+        return config.getString("database.postgresql.database", "deadzone");
+    }
+
+    public String pgUsername() {
+        return config.getString("database.postgresql.username", "deadzone");
+    }
+
+    public String pgPassword() {
+        return config.getString("database.postgresql.password", "");
+    }
+
+    public boolean pgSsl() {
+        return config.getBoolean("database.postgresql.ssl", false);
+    }
+
     public int autosaveMinutes() {
         return Math.max(1, config.getInt("profiles.autosave-minutes", 5));
     }

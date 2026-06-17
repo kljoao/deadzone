@@ -56,13 +56,17 @@ public class ZoneManager {
         }
         GameMode mode = player.getGameMode();
         boolean canBeHarmed = mode == GameMode.SURVIVAL || mode == GameMode.ADVENTURE;
+        // O dano roda todo segundo, mas o visual só a cada ~2s (alterna pela idade do jogador).
+        boolean renderTick = (player.getTicksLived() / 20) % 2 == 0;
 
         for (ToxicZone zone : config.zones()) {
             if (!player.getWorld().getName().equals(zone.world())) {
                 continue;
             }
-            renderBorder(player, zone); // contorno visível em qualquer modo de jogo
-            renderHaze(player, zone);   // névoa tóxica de aviso
+            if (renderTick) {
+                renderBorder(player, zone); // contorno visível em qualquer modo de jogo
+                renderHaze(player, zone);   // névoa tóxica de aviso
+            }
 
             if (!zone.contains(player.getLocation())) {
                 continue;
@@ -83,7 +87,7 @@ public class ZoneManager {
         double x1 = z.minX(), y1 = z.minY(), z1 = z.minZ();
         double x2 = z.maxX() + 1, y2 = z.maxY() + 1, z2 = z.maxZ() + 1;
         double cx = (x1 + x2) / 2, cy = (y1 + y2) / 2, cz = (z1 + z2) / 2;
-        if (player.getLocation().distanceSquared(new Location(player.getWorld(), cx, cy, cz)) > 56 * 56) {
+        if (farFrom(player, cx, cy, cz)) {
             return;
         }
         double s = 2.0;
@@ -109,7 +113,7 @@ public class ZoneManager {
         double cx = (z.minX() + z.maxX() + 1) / 2.0;
         double cy = (z.minY() + z.maxY() + 1) / 2.0;
         double cz = (z.minZ() + z.maxZ() + 1) / 2.0;
-        if (player.getLocation().distanceSquared(new Location(player.getWorld(), cx, cy, cz)) > 56 * 56) {
+        if (farFrom(player, cx, cy, cz)) {
             return;
         }
         var rng = java.util.concurrent.ThreadLocalRandom.current();
@@ -118,12 +122,18 @@ public class ZoneManager {
             double x = z.minX() + rng.nextDouble() * (z.maxX() - z.minX() + 1);
             double y = z.minY() + rng.nextDouble() * (z.maxY() - z.minY() + 1);
             double zc = z.minZ() + rng.nextDouble() * (z.maxZ() - z.minZ() + 1);
-            Location loc = new Location(player.getWorld(), x, y, zc);
-            player.spawnParticle(Particle.DUST, loc, 1, 0, 0, 0, 0, TOXIC);
+            player.spawnParticle(Particle.DUST, x, y, zc, 1, 0, 0, 0, 0, TOXIC);
             if (rng.nextDouble() < 0.25) {
-                player.spawnParticle(Particle.SNEEZE, loc, 1, 0.1, 0.1, 0.1, 0.01);
+                player.spawnParticle(Particle.SNEEZE, x, y, zc, 1, 0.1, 0.1, 0.1, 0.01);
             }
         }
+    }
+
+    /** Distância² do jogador a um ponto, sem alocar Location. */
+    private boolean farFrom(Player player, double x, double y, double z) {
+        Location pl = player.getLocation();
+        double dx = pl.getX() - x, dy = pl.getY() - y, dz = pl.getZ() - z;
+        return dx * dx + dy * dy + dz * dz > 56 * 56;
     }
 
     private void line(Player player, double x1, double y1, double z1, double x2, double y2, double z2, double step) {
@@ -132,8 +142,7 @@ public class ZoneManager {
         int steps = Math.max(1, (int) (len / step));
         for (int i = 0; i <= steps; i++) {
             double t = (double) i / steps;
-            Location loc = new Location(player.getWorld(), x1 + dx * t, y1 + dy * t, z1 + dz * t);
-            player.spawnParticle(Particle.DUST, loc, 1, 0, 0, 0, 0, TOXIC);
+            player.spawnParticle(Particle.DUST, x1 + dx * t, y1 + dy * t, z1 + dz * t, 1, 0, 0, 0, 0, TOXIC);
         }
     }
 

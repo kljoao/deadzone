@@ -40,6 +40,11 @@ public class MembroPermMenu extends Menu {
 
     @Override
     protected void build(Player viewer) {
+        if (!claim.owner().equals(viewer.getUniqueId())) {
+            viewer.closeInventory();
+            viewer.sendActionBar(Component.text("Apenas o dono da base pode fazer isso.", NamedTextColor.RED));
+            return;
+        }
         setItem(10, toggle("Quebrar/colocar blocos", Claim.FLAG_BUILD),
                 e -> {
                     manager.toggleFlag(claim, member, Claim.FLAG_BUILD);

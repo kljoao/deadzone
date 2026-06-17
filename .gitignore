@@ -27,3 +27,7 @@ itens/
 
 # Config local da ferramenta
 .claude/settings.local.json
+
+# Artefatos de build/trabalho
+*.zip
+_wave_preview.png

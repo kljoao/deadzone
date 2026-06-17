@@ -24,6 +24,7 @@ import org.bukkit.scoreboard.Team;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -49,8 +50,22 @@ public class HudService implements Listener {
     private final HudConfig config;
     private final Map<UUID, Sidebar> sidebars = new HashMap<>();
 
+    // Cache de parse (MiniMessage é caro). As mesmas strings se repetem entre players e frames,
+    // então a taxa de acerto é altíssima — derruba ~3.300 parses/seg para algumas dezenas.
+    // LRU limitado (só main thread); a string é a chave (mesma string => mesmo Component).
+    private final Map<String, Component> parseCache = new LinkedHashMap<>(512, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Component> eldest) {
+            return size() > 1024;
+        }
+    };
+
     private int taskId = -1;
     private int frame;
+
+    private Component cachedParse(String raw) {
+        return parseCache.computeIfAbsent(raw, plugin.getMessages()::parse);
+    }
 
     public HudService(DeadzonePlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
@@ -91,13 +106,14 @@ public class HudService implements Listener {
             return;
         }
         frame++;
+        Component title = titleComponent(); // depende só do frame: computa 1x p/ todos os players
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());
             if (profile == null) {
                 continue;
             }
             Sidebar sidebar = sidebars.computeIfAbsent(player.getUniqueId(), k -> build(player));
-            update(player, sidebar, profile);
+            update(player, sidebar, profile, title);
         }
     }
 
@@ -118,11 +134,11 @@ public class HudService implements Listener {
         return new Sidebar(objective, teams);
     }
 
-    private void update(Player player, Sidebar sidebar, PlayerProfile profile) {
-        sidebar.objective().displayName(titleComponent());
+    private void update(Player player, Sidebar sidebar, PlayerProfile profile, Component title) {
+        sidebar.objective().displayName(title);
         List<String> lines = computeLines(player, profile);
         for (int i = 0; i < LINES; i++) {
-            sidebar.teams().get(i).prefix(plugin.getMessages().parse(lines.get(i)));
+            sidebar.teams().get(i).prefix(cachedParse(lines.get(i)));
         }
     }
 
@@ -141,7 +157,7 @@ public class HudService implements Listener {
         String sanColor = goodHigh(sanity);
         lines.add(meter(sanColor, "Sanidade", sanity, len));
 
-        BleedState bleed = profile.getBleedState();
+        BleedState bleed = plugin.getMedicineManager().bleeding().getBleed(player.getUniqueId());
         boolean wound = plugin.getMedicineManager().bleeding().isWoundInfected(player.getUniqueId());
         if (bleed != null) {
             lines.add("<red>● <white>Sangramento: <red>nível " + bleed.getSeverity());
@@ -182,6 +198,9 @@ public class HudService implements Listener {
     }
 
     private Component titleComponent() {
+        if (config.titleLogo()) {
+            return Component.text(""); // glifo da logo (fonte do resource pack)
+        }
         String text = config.title();
         double highlight = (frame * 0.5) % (text.length() + 6);
         Component core = Component.empty();

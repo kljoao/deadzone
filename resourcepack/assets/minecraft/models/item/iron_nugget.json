@@ -4,6 +4,10 @@
     "layer0": "minecraft:item/iron_nugget"
   },
   "overrides": [
-    {"predicate": {"custom_model_data": 4001}, "model": "deadzone:item/9mm"}
+    {"predicate": {"custom_model_data": 4001}, "model": "deadzone:item/9mm"},
+    {"predicate": {"custom_model_data": 4002}, "model": "deadzone:item/45acp"},
+    {"predicate": {"custom_model_data": 4003}, "model": "deadzone:item/762"},
+    {"predicate": {"custom_model_data": 4004}, "model": "deadzone:item/792"},
+    {"predicate": {"custom_model_data": 6001}, "model": "deadzone:item/scrap"}
   ]
 }

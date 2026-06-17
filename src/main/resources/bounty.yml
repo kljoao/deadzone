@@ -1,0 +1,13 @@
+# =========================================================
+#  Deadzone - Bounty (recompensa pela cabeça)
+# =========================================================
+
+# Notoriedade: cada jogador que você abate soma ao SEU PRÓPRIO bounty (você fica "procurado").
+# 0 = desliga a notoriedade automática (só bounty colocado por outros players).
+notoriety-per-kill: 100
+
+# Anti-farm: você não ganha notoriedade matando a MESMA vítima de novo dentro desse tempo (segundos).
+same-victim-cooldown-seconds: 600
+
+# Valor mínimo de scraps para colocar um bounty na cabeça de alguém.
+min-place: 50

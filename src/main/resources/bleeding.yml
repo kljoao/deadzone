@@ -6,6 +6,9 @@
 # Chance de iniciar/agravar sangramento ao tomar golpe de zumbi.
 chance-on-zombie-hit: 0.50
 
+# Chance de iniciar/agravar sangramento ao LEVAR UM TIRO (bala de arma de fogo, inclusive de outro player).
+chance-on-firearm-hit: 0.50
+
 # Severidade máxima (cada golpe que "pega" soma +1).
 max-severity: 6
 

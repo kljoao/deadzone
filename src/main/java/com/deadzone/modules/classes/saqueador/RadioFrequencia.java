@@ -33,7 +33,7 @@ public class RadioFrequencia extends CustomItem {
 
     @Override
     public ItemStack build() {
-        ItemStack stack = new ItemStack(Material.COMPASS);
+        ItemStack stack = new ItemStack(Material.PAPER);
         stack.editMeta(meta -> {
             meta.displayName(Component.text("Rádio de Frequência", NamedTextColor.AQUA)
                     .decoration(TextDecoration.ITALIC, false));
@@ -42,7 +42,7 @@ public class RadioFrequencia extends CustomItem {
                             .decoration(TextDecoration.ITALIC, false),
                     Component.text("Clique direito para emitir um ping.", NamedTextColor.DARK_GRAY)
                             .decoration(TextDecoration.ITALIC, false)));
-            meta.setCustomModelData(2001);
+            meta.setCustomModelData(6002);
             meta.getPersistentDataContainer().set(ItemKeys.ITEM_ID, PersistentDataType.STRING, id());
         });
         return stack;

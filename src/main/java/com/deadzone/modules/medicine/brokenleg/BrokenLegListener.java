@@ -11,6 +11,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
 public class BrokenLegListener implements Listener {
@@ -70,12 +71,19 @@ public class BrokenLegListener implements Listener {
 
     @EventHandler
     public void onDeath(PlayerDeathEvent event) {
-        manager.quietCleanupSplint(event.getEntity());
-        manager.clearLeg(event.getEntity().getUniqueId());
+        // Limpa estado + remove a slowness (senão renasce lento, pois o efeito sobrevive à morte).
+        manager.clearAll(event.getEntity());
+    }
+
+    /** Rede de segurança: garante que ninguém renasça com a slowness da perna. */
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent event) {
+        manager.removeLegEffects(event.getPlayer());
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        manager.quietCleanupSplint(event.getPlayer());
+        // Restaura efeitos (não persiste slowness no .dat) mas MANTÉM a fratura p/ o relog.
+        manager.suspendForLogout(event.getPlayer());
     }
 }

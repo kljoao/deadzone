@@ -1,0 +1,65 @@
+# =========================================================
+#  Deadzone - Clãs
+#  Núcleo, cofre, friendly-fire e progressão por TIERS (comprados com scraps do cofre).
+# =========================================================
+
+# Custo em scraps para fundar um clan.
+create-cost: 2000
+
+name:
+  min-length: 3
+  max-length: 16
+
+tag:
+  min-length: 2
+  max-length: 5
+
+# Tempo que um convite fica de pé (segundos).
+invite-ttl-seconds: 120
+
+# Cor padrão de um clan recém-criado (nome de cor do Minecraft).
+# A tag SÓ pode ser colorida por quem tem a permissão 'deadzone.clan.coloredtag' (VIP+).
+default-color: WHITE
+
+# Cores que o líder (com permissão) pode escolher.
+allowed-colors:
+  - WHITE
+  - GRAY
+  - YELLOW
+  - GOLD
+  - RED
+  - DARK_RED
+  - GREEN
+  - DARK_GREEN
+  - AQUA
+  - DARK_AQUA
+  - BLUE
+  - LIGHT_PURPLE
+  - DARK_PURPLE
+
+# ----- Progressão por TIERS -----
+# Cada tier define o limite de integrantes e o custo (em scraps, pago do COFRE) para
+# subir ATÉ ele. O clan começa no tier 1. Warlord/Overlord (deadzone.clan.maxtier)
+# já começam no tier máximo.
+tiers:
+  '1':
+    members: 8
+    cost: 0
+  '2':
+    members: 16
+    cost: 5000
+  '3':
+    members: 25
+    cost: 12000
+  '4':
+    members: 40
+    cost: 25000
+  '5':
+    members: 60
+    cost: 50000
+  '6':
+    members: 90
+    cost: 90000
+  '7':
+    members: 150
+    cost: 160000

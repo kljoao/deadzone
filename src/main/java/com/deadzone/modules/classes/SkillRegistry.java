@@ -63,7 +63,8 @@ public class SkillRegistry {
     public List<SkillNode> nodesFor(PlayerClass clazz) {
         List<SkillNode> out = new ArrayList<>();
         for (SkillNode node : nodes.values()) {
-            if (node.requiredClass() == clazz) {
+            // class: NONE = skill UNIVERSAL (aparece na árvore de todas as classes).
+            if (node.requiredClass() == clazz || node.requiredClass() == PlayerClass.NONE) {
                 out.add(node);
             }
         }

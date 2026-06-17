@@ -6,9 +6,9 @@ import com.deadzone.core.config.Messages;
 import com.deadzone.core.database.Database;
 import com.deadzone.core.database.SchemaManager;
 import com.deadzone.core.database.dao.PlayerProfileDao;
-import com.deadzone.core.database.dao.SqlitePlayerProfileDao;
-import com.deadzone.core.debug.TestItem;
+import com.deadzone.core.database.dao.SqlPlayerProfileDao;
 import com.deadzone.core.entity.EntityKeys;
+import com.deadzone.core.entity.ZombieRadar;
 import com.deadzone.core.gui.MenuListener;
 import com.deadzone.core.item.ItemKeys;
 import com.deadzone.core.item.ItemRegistry;
@@ -23,6 +23,30 @@ import com.deadzone.modules.infection.InfectionConfig;
 import com.deadzone.modules.infection.InfectionManager;
 import com.deadzone.modules.apocalypse.PlayerZombieListener;
 import com.deadzone.modules.atmosphere.AtmosphereManager;
+import com.deadzone.modules.economy.EconomyCommand;
+import com.deadzone.modules.economy.EconomyDao;
+import com.deadzone.modules.economy.EconomyManager;
+import com.deadzone.modules.economy.VaultEconomyProvider;
+import com.deadzone.core.chat.ChatFormatListener;
+import com.deadzone.modules.bounty.BountyCommand;
+import com.deadzone.modules.bounty.BountyListener;
+import com.deadzone.modules.bounty.BountyManager;
+import com.deadzone.modules.clan.ClanChatCommand;
+import com.deadzone.modules.clan.ClanCombatListener;
+import com.deadzone.modules.clan.ClanCommand;
+import com.deadzone.modules.clan.ClanGlowService;
+import com.deadzone.modules.clan.ClanManager;
+import com.deadzone.modules.clan.ClanSymbolService;
+import com.deadzone.modules.clan.ClanTopCommand;
+import com.deadzone.modules.daily.DailyCommand;
+import com.deadzone.modules.daily.DailyRewardManager;
+import com.deadzone.modules.stats.StatsCommand;
+import com.deadzone.modules.stats.StatsListener;
+import com.deadzone.modules.shop.ShopCommand;
+import com.deadzone.modules.shop.ShopManager;
+import com.deadzone.modules.loot.LootCommand;
+import com.deadzone.modules.loot.LootListener;
+import com.deadzone.modules.loot.LootManager;
 import com.deadzone.modules.events.EventsManager;
 import com.deadzone.modules.firearms.FirearmManager;
 import com.deadzone.modules.hud.HudService;
@@ -33,7 +57,9 @@ import com.deadzone.modules.claim.MinhaBaseCommand;
 import com.deadzone.modules.noise.NoiseManager;
 import com.deadzone.modules.siege.SiegeManager;
 import com.deadzone.modules.medicine.bench.BenchCommand;
+import com.deadzone.modules.medicine.bench.CraftingRedirectListener;
 import com.deadzone.modules.sanity.SanityManager;
+import com.deadzone.modules.world.DisabledBlocksListener;
 import com.deadzone.modules.world.WorldConfig;
 import com.deadzone.modules.world.WorldManager;
 import org.bukkit.command.PluginCommand;
@@ -46,11 +72,20 @@ public final class DeadzonePlugin extends JavaPlugin {
     private Messages messages;
     private Database database;
     private ProfileManager profileManager;
+    private EconomyManager economyManager;
+    private BountyManager bountyManager;
+    private DailyRewardManager dailyRewardManager;
+    private ClanManager clanManager;
+    private ShopManager shopManager;
+    private ClanGlowService clanGlowService;
+    private ClanSymbolService clanSymbolService;
+    private LootManager lootManager;
     private TickService tickService;
     private ItemRegistry itemRegistry;
 
     private InfectionConfig infectionConfig;
     private InfectionManager infectionManager;
+    private ZombieRadar zombieRadar;
 
     private WorldConfig worldConfig;
     private WorldManager worldManager;
@@ -86,23 +121,44 @@ public final class DeadzonePlugin extends JavaPlugin {
             return;
         }
 
-        PlayerProfileDao dao = new SqlitePlayerProfileDao(database);
+        PlayerProfileDao dao = new SqlPlayerProfileDao(database);
         this.profileManager = new ProfileManager(this, dao, configManager);
         this.profileManager.init();
+
+        this.economyManager = new EconomyManager(this, new EconomyDao(database));
+        this.economyManager.enable();
+
+        this.bountyManager = new BountyManager(this, configManager);
+        this.bountyManager.enable();
+        getServer().getPluginManager().registerEvents(new BountyListener(bountyManager), this);
+
+        this.clanManager = new ClanManager(this, configManager);
+        this.clanManager.enable();
+        getServer().getPluginManager().registerEvents(new ClanCombatListener(clanManager), this);
+        getServer().getPluginManager().registerEvents(new ChatFormatListener(this), this);
+        this.clanGlowService = new ClanGlowService(this, clanManager);
+        this.clanGlowService.enable();
+        this.clanSymbolService = new ClanSymbolService(this, clanManager);
+        this.clanSymbolService.enable();
 
         this.tickService = new TickService(this, profileManager);
         this.tickService.start();
 
         this.itemRegistry = new ItemRegistry();
-        this.itemRegistry.register(new TestItem(messages));
 
         getServer().getPluginManager().registerEvents(new ItemUseListener(itemRegistry), this);
         getServer().getPluginManager().registerEvents(new MenuListener(), this);
         getServer().getPluginManager().registerEvents(new ResourcePackListener(this), this);
+        getServer().getPluginManager().registerEvents(new CraftingRedirectListener(this), this);
+        getServer().getPluginManager().registerEvents(new DisabledBlocksListener(), this);
 
         this.infectionConfig = new InfectionConfig(this, configManager);
         this.infectionManager = new InfectionManager(this, infectionConfig);
         this.infectionManager.enable(tickService);
+
+        // Cache de "zumbis perto" compartilhado por Sanidade/Atmosfera (1 scan/player/seg).
+        this.zombieRadar = new ZombieRadar(this);
+        this.zombieRadar.enable();
 
         this.worldConfig = new WorldConfig(this, configManager);
         this.worldManager = new WorldManager(this, worldConfig);
@@ -167,11 +223,103 @@ public final class DeadzonePlugin extends JavaPlugin {
             minhabase.setExecutor(new MinhaBaseCommand(this));
         }
 
+        EconomyCommand economyCommand = new EconomyCommand(this);
+        for (String cmd : new String[]{"saldo", "pagar", "cobrar", "baltop", "eco"}) {
+            PluginCommand pc = getCommand(cmd);
+            if (pc != null) {
+                pc.setExecutor(economyCommand);
+                pc.setTabCompleter(economyCommand);
+            }
+        }
+        registerVaultEconomy();
+
+        // Loot pelo mundo (busca estilo Tarkov). Depois dos itens/armas registrados (rolls usam o registry).
+        this.lootManager = new LootManager(this, configManager);
+        this.lootManager.enable();
+        getServer().getPluginManager().registerEvents(new LootListener(lootManager), this);
+        PluginCommand loot = getCommand("loot");
+        if (loot != null) {
+            LootCommand lootCmd = new LootCommand(lootManager);
+            loot.setExecutor(lootCmd);
+            loot.setTabCompleter(lootCmd);
+        }
+
+        // Recompensa diária (config lê o registry de itens só no resgate — registry já populado aqui).
+        this.dailyRewardManager = new DailyRewardManager(this, configManager);
+        PluginCommand diario = getCommand("diario");
+        if (diario != null) {
+            diario.setExecutor(new DailyCommand(this));
+        }
+
+        // Estatísticas de jogador.
+        getServer().getPluginManager().registerEvents(new StatsListener(this), this);
+        PluginCommand stats = getCommand("stats");
+        if (stats != null) {
+            StatsCommand statsCmd = new StatsCommand(this);
+            stats.setExecutor(statsCmd);
+            stats.setTabCompleter(statsCmd);
+        }
+
+        // Lojas (depois dos itens/armas registrados — as lojas resolvem itens do registry).
+        this.shopManager = new ShopManager(this, configManager);
+        ShopCommand shopCmd = new ShopCommand(this);
+        for (String cmd : new String[]{"medico", "armeiro", "comprador"}) {
+            PluginCommand pc = getCommand(cmd);
+            if (pc != null) {
+                pc.setExecutor(shopCmd);
+            }
+        }
+
+        // Clãs.
+        PluginCommand clan = getCommand("clan");
+        if (clan != null) {
+            ClanCommand clanCmd = new ClanCommand(this);
+            clan.setExecutor(clanCmd);
+            clan.setTabCompleter(clanCmd);
+        }
+        PluginCommand clanChat = getCommand("c");
+        if (clanChat != null) {
+            clanChat.setExecutor(new ClanChatCommand(this));
+        }
+        PluginCommand clanTop = getCommand("clantop");
+        if (clanTop != null) {
+            clanTop.setExecutor(new ClanTopCommand(this));
+        }
+
+        PluginCommand bountyCmd = getCommand("bounty");
+        if (bountyCmd != null) {
+            BountyCommand bc = new BountyCommand(this);
+            bountyCmd.setExecutor(bc);
+            bountyCmd.setTabCompleter(bc);
+        }
+
         getLogger().info("Deadzone habilitado em " + (System.currentTimeMillis() - start) + "ms.");
+    }
+
+    /** Registra os scraps como provedor de economia do Vault (se o Vault/VaultUnlocked estiver presente). */
+    private void registerVaultEconomy() {
+        if (getServer().getPluginManager().getPlugin("Vault") == null
+                && getServer().getPluginManager().getPlugin("VaultUnlocked") == null) {
+            getLogger().info("Vault/VaultUnlocked não encontrado — economia sem ponte Vault.");
+            return;
+        }
+        try {
+            getServer().getServicesManager().register(net.milkbowl.vault.economy.Economy.class,
+                    new VaultEconomyProvider(this), this, org.bukkit.plugin.ServicePriority.Highest);
+            getLogger().info("Economia (scraps) registrada no Vault.");
+        } catch (Throwable t) {
+            getLogger().warning("Falha ao registrar economia no Vault: " + t.getMessage());
+        }
     }
 
     @Override
     public void onDisable() {
+        if (clanGlowService != null) {
+            clanGlowService.disable();
+        }
+        if (clanSymbolService != null) {
+            clanSymbolService.disable();
+        }
         if (claimManager != null) {
             claimManager.disable();
         }
@@ -215,6 +363,30 @@ public final class DeadzonePlugin extends JavaPlugin {
         return profileManager;
     }
 
+    public EconomyManager getEconomyManager() {
+        return economyManager;
+    }
+
+    public DailyRewardManager getDailyRewardManager() {
+        return dailyRewardManager;
+    }
+
+    public BountyManager getBountyManager() {
+        return bountyManager;
+    }
+
+    public ShopManager getShopManager() {
+        return shopManager;
+    }
+
+    public ClanManager getClanManager() {
+        return clanManager;
+    }
+
+    public LootManager getLootManager() {
+        return lootManager;
+    }
+
     public TickService getTickService() {
         return tickService;
     }
@@ -229,6 +401,10 @@ public final class DeadzonePlugin extends JavaPlugin {
 
     public InfectionManager getInfectionManager() {
         return infectionManager;
+    }
+
+    public ZombieRadar getZombieRadar() {
+        return zombieRadar;
     }
 
     public WorldConfig getWorldConfig() {

@@ -84,7 +84,13 @@ public class SaqueadorManager {
         Chunk center = origin.getChunk();
         for (int dx = -chunkRadius; dx <= chunkRadius; dx++) {
             for (int dz = -chunkRadius; dz <= chunkRadius; dz++) {
-                Chunk chunk = world.getChunkAt(center.getX() + dx, center.getZ() + dz);
+                int cx = center.getX() + dx;
+                int cz = center.getZ() + dz;
+                // Só chunks JÁ carregados: não força carregamento/geração (stall) ao usar o rádio.
+                if (!world.isChunkLoaded(cx, cz)) {
+                    continue;
+                }
+                Chunk chunk = world.getChunkAt(cx, cz);
                 for (BlockState state : chunk.getTileEntities()) {
                     if (!(state instanceof Container container)) {
                         continue;

@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 /**
@@ -24,6 +27,14 @@ public class ProfileManager {
     private final ConfigManager config;
     private final Map<UUID, PlayerProfile> cache = new ConcurrentHashMap<>();
     private final List<BiConsumer<Player, PlayerProfile>> loadHooks = new ArrayList<>();
+
+    // Todas as operações de DB passam por UMA thread (FIFO): garante que o save do quit
+    // termine antes do load do rejoin (sem race de relog rápido) e que não se sobreponham.
+    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "Deadzone-DB");
+        t.setDaemon(true);
+        return t;
+    });
 
     private int autosaveTaskId = -1;
 
@@ -51,12 +62,29 @@ public class ProfileManager {
             plugin.getServer().getScheduler().cancelTask(autosaveTaskId);
             autosaveTaskId = -1;
         }
+        // Drena os saves pendentes na fila antes do flush final (síncrono).
+        dbExecutor.shutdown();
+        try {
+            if (!dbExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                plugin.getLogger().warning("Saves de perfil pendentes não terminaram a tempo.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         saveAllSync();
     }
 
     /** Callback executado (na main thread) após carregar o perfil no join. */
     public void onProfileLoaded(BiConsumer<Player, PlayerProfile> hook) {
         loadHooks.add(hook);
+    }
+
+    /**
+     * Roda uma tarefa de banco na MESMA thread FIFO dos load/save de perfil. Usado pela economia
+     * para mexer no saldo de jogadores OFFLINE sem corrida com o carregamento no login.
+     */
+    public void submitDbTask(Runnable task) {
+        dbExecutor.execute(task);
     }
 
     public PlayerProfile get(UUID uuid) {
@@ -74,7 +102,7 @@ public class ProfileManager {
     public void handleJoin(Player player) {
         UUID id = player.getUniqueId();
         String name = player.getName();
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        dbExecutor.execute(() -> {
             PlayerProfile loaded;
             try {
                 loaded = dao.load(id);
@@ -83,14 +111,15 @@ public class ProfileManager {
                 loaded = null;
             }
             final PlayerProfile profile = (loaded != null) ? loaded : PlayerProfile.createDefault(id, name);
-            profile.setLastKnownName(name);
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                cache.put(id, profile);
                 Player online = plugin.getServer().getPlayer(id);
-                if (online != null) {
-                    for (BiConsumer<Player, PlayerProfile> hook : loadHooks) {
-                        hook.accept(online, profile);
-                    }
+                if (online == null) {
+                    return; // saiu antes do load terminar: não cacheia perfil-fantasma p/ offline
+                }
+                profile.setLastKnownName(name); // mutação só na main thread
+                cache.put(id, profile);
+                for (BiConsumer<Player, PlayerProfile> hook : loadHooks) {
+                    hook.accept(online, profile);
                 }
             });
         });
@@ -121,9 +150,11 @@ public class ProfileManager {
     }
 
     private void autosave() {
+        List<PlayerProfile> dirtyProfiles = new ArrayList<>();
         List<ProfileSnapshot> snaps = new ArrayList<>();
         for (PlayerProfile p : cache.values()) {
             if (p.isDirty()) {
+                dirtyProfiles.add(p);
                 snaps.add(p.snapshot());
                 p.setDirty(false);
             }
@@ -131,17 +162,20 @@ public class ProfileManager {
         if (snaps.isEmpty()) {
             return;
         }
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        dbExecutor.execute(() -> {
             try {
                 dao.saveAll(snaps);
             } catch (Exception e) {
-                plugin.getLogger().warning("Autosave falhou: " + e.getMessage());
+                plugin.getLogger().warning("Autosave falhou (re-marcando p/ retry): " + e.getMessage());
+                // Save falhou: re-marca como sujo (na main thread) para tentar de novo, sem perder dados.
+                plugin.getServer().getScheduler().runTask(plugin,
+                        () -> dirtyProfiles.forEach(p -> p.setDirty(true)));
             }
         });
     }
 
     private void saveAsync(ProfileSnapshot snapshot) {
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        dbExecutor.execute(() -> {
             try {
                 dao.save(snapshot);
             } catch (Exception e) {

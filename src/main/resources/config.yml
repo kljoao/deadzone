@@ -6,8 +6,21 @@
 debug: false
 
 database:
-  # Tamanho do pool de conexões SQLite. Para servidor único, 4 é suficiente.
+  # Tipo do banco: "sqlite" (servidor unico/dev) ou "postgresql" (producao/escala/rede).
+  type: sqlite
+  # Tamanho do pool de conexoes. SQLite: 4 basta. PostgreSQL: 10-20 conforme a carga.
   pool-size: 4
+  # Conexao PostgreSQL (so usada quando type: postgresql).
+  # Crie o banco e o usuario no Postgres antes (ex.: CREATE DATABASE deadzone; CREATE USER ...).
+  # O plugin cria as TABELAS sozinho.
+  postgresql:
+    host: localhost
+    port: 5432
+    database: deadzone
+    username: deadzone
+    password: ""
+    # ssl: true em provedores na nuvem (Neon, Supabase, RDS, etc.).
+    ssl: false
 
 profiles:
   # Intervalo (minutos) do autosave de perfis "sujos" (alterados).

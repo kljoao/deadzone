@@ -72,6 +72,12 @@ public abstract class Menu {
         }
     }
 
+    /** Fechado: solta as referências (inventário + ações) p/ o GC. Subclasses podem estender. */
+    public void onClose(Player viewer) {
+        actions.clear();
+        inventory = null;
+    }
+
     /** Despacha o clique para a ação registrada no slot, se houver. */
     public void onClick(InventoryClickEvent event) {
         Consumer<InventoryClickEvent> action = actions.get(event.getRawSlot());

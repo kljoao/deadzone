@@ -29,6 +29,7 @@ public class ClassConfig {
     private boolean downedEnabled;
     private int downedDurationSeconds;
     private double reviveHealthPercent;
+    private int reviveSeconds;
     private Set<DamageCause> downedIgnoredCauses;
 
     private int diagnosisRange;
@@ -73,6 +74,7 @@ public class ClassConfig {
         this.downedEnabled = c.getBoolean("downed.enabled", true);
         this.downedDurationSeconds = Math.max(1, c.getInt("downed.duration-seconds", 30));
         this.reviveHealthPercent = c.getDouble("downed.revive-health-percent", 50);
+        this.reviveSeconds = Math.max(0, c.getInt("downed.revive-seconds", 5));
         this.downedIgnoredCauses = EnumSet.noneOf(DamageCause.class);
         for (String name : c.getStringList("downed.ignored-causes")) {
             try {
@@ -140,6 +142,10 @@ public class ClassConfig {
 
     public double reviveHealthPercent() {
         return reviveHealthPercent;
+    }
+
+    public int reviveSeconds() {
+        return reviveSeconds;
     }
 
     public Set<DamageCause> downedIgnoredCauses() {

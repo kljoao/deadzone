@@ -13,13 +13,21 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.UUID;
 
-public class SqlitePlayerProfileDao implements PlayerProfileDao {
+/**
+ * DAO de perfis em SQL padrão. Funciona tanto em SQLite quanto em PostgreSQL:
+ * o UPSERT {@code ON CONFLICT(uuid) DO UPDATE SET col = excluded.col} é suportado
+ * pelos dois bancos, e os tipos do schema são portáveis (ver {@code SchemaManager}).
+ */
+public class SqlPlayerProfileDao implements PlayerProfileDao {
 
     private static final String UPSERT_PLAYER = """
         INSERT INTO players
             (uuid, name, infected, infection_level, sanity, player_class, xp, total_xp_earned,
-             first_join, last_seen, downed_until)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             first_join, last_seen, downed_until, balance,
+             daily_streak, last_daily_claim,
+             stat_zombies_killed, stat_players_killed, stat_deaths, stat_revives,
+             stat_best_survival_ms, life_started_at, bounty)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(uuid) DO UPDATE SET
             name            = excluded.name,
             infected        = excluded.infected,
@@ -29,12 +37,22 @@ public class SqlitePlayerProfileDao implements PlayerProfileDao {
             xp              = excluded.xp,
             total_xp_earned = excluded.total_xp_earned,
             last_seen       = excluded.last_seen,
-            downed_until    = excluded.downed_until
+            downed_until    = excluded.downed_until,
+            balance         = excluded.balance,
+            daily_streak          = excluded.daily_streak,
+            last_daily_claim      = excluded.last_daily_claim,
+            stat_zombies_killed   = excluded.stat_zombies_killed,
+            stat_players_killed   = excluded.stat_players_killed,
+            stat_deaths           = excluded.stat_deaths,
+            stat_revives          = excluded.stat_revives,
+            stat_best_survival_ms = excluded.stat_best_survival_ms,
+            life_started_at       = excluded.life_started_at,
+            bounty                = excluded.bounty
         """;
 
     private final Database database;
 
-    public SqlitePlayerProfileDao(Database database) {
+    public SqlPlayerProfileDao(Database database) {
         this.database = database;
     }
 
@@ -58,10 +76,22 @@ public class SqlitePlayerProfileDao implements PlayerProfileDao {
                     profile.setTotalXpEarned(rs.getLong("total_xp_earned"));
                     profile.setFirstJoin(rs.getLong("first_join"));
                     profile.setLastSeen(rs.getLong("last_seen"));
+                    profile.setBalance(rs.getLong("balance"));
+                    profile.setBounty(rs.getLong("bounty"));
                     long downedUntil = rs.getLong("downed_until");
                     if (downedUntil > System.currentTimeMillis()) {
                         profile.setDownedState(new DownedState(System.currentTimeMillis(), downedUntil));
                     }
+                    profile.setDailyStreak(rs.getLong("daily_streak"));
+                    profile.setLastDailyClaim(rs.getLong("last_daily_claim"));
+                    profile.setZombiesKilled(rs.getLong("stat_zombies_killed"));
+                    profile.setPlayersKilled(rs.getLong("stat_players_killed"));
+                    profile.setDeaths(rs.getLong("stat_deaths"));
+                    profile.setRevives(rs.getLong("stat_revives"));
+                    profile.setBestSurvivalMs(rs.getLong("stat_best_survival_ms"));
+                    // Perfis antigos têm life_started_at = 0; começa a contar a vida agora.
+                    long lifeStart = rs.getLong("life_started_at");
+                    profile.setLifeStartedAt(lifeStart > 0 ? lifeStart : System.currentTimeMillis());
                 }
             }
 
@@ -159,6 +189,16 @@ public class SqlitePlayerProfileDao implements PlayerProfileDao {
             ps.setLong(9, snap.firstJoin());
             ps.setLong(10, snap.lastSeen());
             ps.setLong(11, snap.downedUntil());
+            ps.setLong(12, snap.balance());
+            ps.setLong(13, snap.dailyStreak());
+            ps.setLong(14, snap.lastDailyClaim());
+            ps.setLong(15, snap.zombiesKilled());
+            ps.setLong(16, snap.playersKilled());
+            ps.setLong(17, snap.deaths());
+            ps.setLong(18, snap.revives());
+            ps.setLong(19, snap.bestSurvivalMs());
+            ps.setLong(20, snap.lifeStartedAt());
+            ps.setLong(21, snap.bounty());
             ps.executeUpdate();
         }
     }

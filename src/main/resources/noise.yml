@@ -10,11 +10,12 @@ threshold: 25
 # Quanto o barulho diminui por segundo (silêncio).
 decay-per-second: 2
 
-# Barulho gerado ao quebrar um bloco.
-block-break: 4
-
-# Barulho por segundo correndo sem agachar.
+# Barulho por segundo CORRENDO (sem agachar).
 sprint-per-second: 3
 
-# Raio para atrair zumbis quando o barulho estoura.
+# Barulho ao PULAR (pontual).
+jump: 2
+
+# Raio para atrair zumbis quando o barulho acumulado estoura.
+# (Tiros usam o raio/intensidade próprios da arma, bem maiores — são bem mais altos.)
 attract-radius: 24

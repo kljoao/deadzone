@@ -4,9 +4,6 @@ import com.deadzone.DeadzonePlugin;
 import com.deadzone.core.config.ConfigManager;
 import com.deadzone.core.profile.PlayerProfile;
 import com.deadzone.core.scheduler.TickService;
-import net.kyori.adventure.bossbar.BossBar;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -15,9 +12,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -28,7 +22,6 @@ public class SanityManager {
 
     private final DeadzonePlugin plugin;
     private final SanityConfig config;
-    private final Map<UUID, BossBar> bars = new HashMap<>();
 
     public SanityManager(DeadzonePlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
@@ -36,6 +29,7 @@ public class SanityManager {
     }
 
     public void enable(TickService tickService) {
+        plugin.getZombieRadar().ensureRadius(config.zombieRadius());
         tickService.registerSecondHandler(this::tick);
         plugin.getServer().getPluginManager().registerEvents(new SanityListener(plugin, this), plugin);
         plugin.getServer().getPluginManager().registerEvents(new TraumaListener(plugin, this), plugin);
@@ -91,16 +85,7 @@ public class SanityManager {
         double now = clamp(profile.getSanity() + delta);
         profile.setSanity(now);
 
-        applyEffects(player, now);
-        clear(player.getUniqueId()); // sanidade fica so no scoreboard (sem boss bar)
-    }
-
-    public void clear(UUID uuid) {
-        Player player = plugin.getServer().getPlayer(uuid);
-        BossBar bar = bars.remove(uuid);
-        if (bar != null && player != null) {
-            player.hideBossBar(bar);
-        }
+        applyEffects(player, now); // sanidade aparece só no scoreboard (HUD), sem boss bar
     }
 
     private boolean isLit(Player player) {
@@ -117,14 +102,7 @@ public class SanityManager {
     }
 
     private int countZombies(Player player) {
-        int r = config.zombieRadius();
-        int count = 0;
-        for (var e : player.getNearbyEntities(r, r, r)) {
-            if (plugin.getInfectionManager().isZombieType(e)) {
-                count++;
-            }
-        }
-        return count;
+        return plugin.getZombieRadar().count(player, config.zombieRadius());
     }
 
     private boolean hasCompany(Player player) {
@@ -148,23 +126,6 @@ public class SanityManager {
         if (tier.visual() && ThreadLocalRandom.current().nextDouble() < 0.15) {
             addEffect(player, "nausea", 0, 120);
         }
-    }
-
-    private void updateBossbar(Player player, double sanity) {
-        if (sanity >= config.bossbarShowBelow()) {
-            clear(player.getUniqueId());
-            return;
-        }
-        BossBar.Color color = sanity < 25 ? BossBar.Color.RED
-                : sanity < 50 ? BossBar.Color.YELLOW : BossBar.Color.GREEN;
-        BossBar bar = bars.computeIfAbsent(player.getUniqueId(), k -> {
-            BossBar b = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
-            player.showBossBar(b);
-            return b;
-        });
-        bar.color(color);
-        bar.progress((float) Math.max(0, Math.min(1, sanity / 100.0)));
-        bar.name(Component.text("🧠 Sanidade: " + (int) sanity + "%", NamedTextColor.WHITE));
     }
 
     private void addEffect(Player player, String id, int amplifier, int ticks) {

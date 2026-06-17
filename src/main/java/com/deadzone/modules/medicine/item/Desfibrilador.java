@@ -20,9 +20,8 @@ public class Desfibrilador extends DefinedItem {
             player.sendActionBar(Component.text("Mire em um jogador derrubado para reanimá-lo.", NamedTextColor.GRAY));
             return true;
         }
-        if (plugin.getClassManager().downed().tryRevive(player, downedTarget)) {
-            consumeOne(stack);
-        }
+        // Consome só quando o revive CONCLUIR (não ao iniciar — evita perder o item se interromper).
+        plugin.getClassManager().downed().startRevive(player, downedTarget, true, () -> consumeOne(stack));
         return true;
     }
 }

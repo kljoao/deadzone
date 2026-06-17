@@ -1,0 +1,34 @@
+# =========================================================
+#  Deadzone - Recompensas Diárias (streak de login)
+#  /diario abre o menu. Resgate 1x por dia: o streak sobe a cada dia
+#  consecutivo e ZERA se você pular um dia. A recompensa cicla a cada
+#  'cycle-days' dias (dia 1..7 e volta ao 1), mantendo o número do streak.
+#
+#  Itens: 'item' = id de item Deadzone (bandagem, kit_primeiros_socorros, scrap...)
+#         'material' = material vanilla do Minecraft (COOKED_BEEF, ARROW...).
+# =========================================================
+
+cycle-days: 7
+
+rewards:
+  '1':
+    scraps: 50
+  '2':
+    scraps: 75
+  '3':
+    scraps: 100
+    items:
+      - { item: bandagem, amount: 2 }
+  '4':
+    scraps: 125
+  '5':
+    scraps: 175
+    items:
+      - { material: COOKED_BEEF, amount: 6 }
+  '6':
+    scraps: 250
+  '7':
+    scraps: 500
+    items:
+      - { item: kit_primeiros_socorros, amount: 1 }
+      - { item: scrap, amount: 8 }

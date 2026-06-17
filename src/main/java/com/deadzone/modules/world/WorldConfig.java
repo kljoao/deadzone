@@ -19,6 +19,8 @@ public class WorldConfig {
 
     private boolean spawnControlEnabled;
     private Set<EntityType> allowedHostiles;
+    private boolean blockPassive;
+    private Set<EntityType> allowedPassive;
     private Set<SpawnReason> ignoredReasons;
 
     private boolean preventSunBurn;
@@ -57,6 +59,16 @@ public class WorldConfig {
             allowedHostiles.addAll(EnumSet.of(EntityType.ZOMBIE, EntityType.HUSK, EntityType.DROWNED, EntityType.ZOMBIE_VILLAGER));
         }
 
+        // Bloqueio de mobs NÃO-hostis (animais, ambiente, neutros). Mundo zumbi: só zumbis spawnam.
+        this.blockPassive = c.getBoolean("spawn-control.block-passive", true);
+        this.allowedPassive = EnumSet.noneOf(EntityType.class);
+        for (String name : c.getStringList("spawn-control.allowed-passive")) {
+            EntityType type = parseEntity(name);
+            if (type != null) {
+                allowedPassive.add(type);
+            }
+        }
+
         this.ignoredReasons = EnumSet.noneOf(SpawnReason.class);
         for (String name : c.getStringList("spawn-control.ignored-reasons")) {
             try {
@@ -68,7 +80,7 @@ public class WorldConfig {
 
         this.preventSunBurn = c.getBoolean("zombies.prevent-sun-burn", true);
         this.noBaby = c.getBoolean("zombies.no-baby", true);
-        this.zombieSpeedMultiplier = c.getDouble("zombies.speed-multiplier", 1.15);
+        this.zombieSpeedMultiplier = c.getDouble("zombies.speed-multiplier", 1.05);
 
         this.daySpawnEnabled = c.getBoolean("zombies.day-spawn.enabled", true);
         this.dayIntervalSeconds = Math.max(1, c.getInt("zombies.day-spawn.interval-seconds", 15));
@@ -109,6 +121,14 @@ public class WorldConfig {
 
     public Set<EntityType> allowedHostiles() {
         return allowedHostiles;
+    }
+
+    public boolean blockPassive() {
+        return blockPassive;
+    }
+
+    public Set<EntityType> allowedPassive() {
+        return allowedPassive;
     }
 
     public Set<SpawnReason> ignoredReasons() {

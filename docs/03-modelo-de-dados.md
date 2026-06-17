@@ -144,7 +144,7 @@ public interface PlayerProfileDao {
 }
 ```
 
-A implementação `SqlitePlayerProfileDao` usa `INSERT ... ON CONFLICT(uuid) DO UPDATE` (upsert) e gerencia `player_skills` por diff (inserir novas, opcionalmente remover removidas).
+A implementação `SqlPlayerProfileDao` usa `INSERT ... ON CONFLICT(uuid) DO UPDATE` (upsert) e gerencia `player_skills` por diff (inserir novas, opcionalmente remover removidas). O mesmo DAO atende **SQLite e PostgreSQL** — o upsert `ON CONFLICT ... excluded` e os tipos do schema (`BIGINT`, `DOUBLE PRECISION`) são portáveis entre os dois. O banco é escolhido em `config.yml` (`database.type: sqlite | postgresql`); ver `Database.java`.
 
 ## Dados em itens e entidades (não no banco)
 

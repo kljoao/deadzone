@@ -10,5 +10,53 @@
     "sounds": [
       {"name": "deadzone:firearm/g17/reload", "stream": false}
     ]
+  },
+  "firearm.ump.shoot": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/ump/shoot", "stream": false}
+    ]
+  },
+  "firearm.ump.reload": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/ump/reload", "stream": false}
+    ]
+  },
+  "firearm.ump_suppressed.shoot": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/ump/suppressed_shoot", "stream": false}
+    ]
+  },
+  "firearm.ak47.shoot": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/ak47/shoot", "stream": false}
+    ]
+  },
+  "firearm.ak47.reload": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/ak47/reload", "stream": false}
+    ]
+  },
+  "firearm.kar98k.shoot": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/kar98k/shoot", "stream": false}
+    ]
+  },
+  "firearm.kar98k.reload": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/kar98k/reload", "stream": false}
+    ]
+  },
+  "firearm.kar98k_suppressed.shoot": {
+    "category": "player",
+    "sounds": [
+      {"name": "deadzone:firearm/kar98k/suppressed_shoot", "stream": false}
+    ]
   }
 }

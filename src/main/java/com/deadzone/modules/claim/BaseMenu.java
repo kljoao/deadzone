@@ -33,6 +33,11 @@ public class BaseMenu extends Menu {
 
     @Override
     protected void build(Player viewer) {
+        if (!claim.owner().equals(viewer.getUniqueId())) {
+            viewer.closeInventory();
+            viewer.sendActionBar(Component.text("Apenas o dono da base pode abrir o menu.", NamedTextColor.RED));
+            return;
+        }
         setItem(11, ClaimIcons.head(Bukkit.getOfflinePlayer(claim.owner()),
                         Component.text("Membros", NamedTextColor.GREEN),
                         java.util.List.of(

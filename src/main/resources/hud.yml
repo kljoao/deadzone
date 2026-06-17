@@ -10,7 +10,11 @@ animation-interval-ticks: 3
 # Tamanho das barras de progresso (Infecção, Sanidade, Vida, Fome).
 bar-length: 10
 
-# Texto do título (recebe o brilho animado).
+# Mostra a LOGO (glifo do resource pack) no título do scoreboard.
+# true = logo; false = usa o texto "title" abaixo (com brilho animado).
+title-logo: true
+
+# Texto do título (usado só quando title-logo: false).
 title: "DEADZONE"
 
 # Rodapé: por padrão mostra o IP/endereço que o jogador usou para conectar.

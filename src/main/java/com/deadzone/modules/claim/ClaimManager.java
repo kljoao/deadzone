@@ -33,6 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /** Sistema de Bases: livro de claim, preview com partículas, criação e restrição de construção. */
 public class ClaimManager {
@@ -47,8 +50,18 @@ public class ClaimManager {
     private final ConfigManager configManager;
     private final File dataFile;
     private final Map<UUID, Claim> claims = new HashMap<>();
+    // Índice espacial: chunk (world:cx:cz) -> claims que o tocam. claimAt deixa de ser O(n) e
+    // passa a olhar só o punhado de claims daquele chunk. O footprint 2D (minX/maxX/minZ/maxZ)
+    // é final, então o índice só muda ao criar/remover/carregar uma base.
+    private final Map<String, List<Claim>> claimIndex = new HashMap<>();
     private final Map<UUID, Pending> pending = new HashMap<>();
     private final Map<UUID, Boolean> inBase = new HashMap<>();
+    // Escrita do claims.yml fora da main thread (1 thread FIFO: nunca corrompe o arquivo).
+    private final ExecutorService claimIo = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "Deadzone-ClaimIO");
+        t.setDaemon(true);
+        return t;
+    });
     private BukkitTask previewTask;
     private BukkitTask saveTask;
     private boolean dirty;
@@ -56,6 +69,7 @@ public class ClaimManager {
 
     private boolean enabled;
     private int size;
+    private int claimBuffer;
     private int heightUp;
     private int heightDown;
     private int nearOffset;
@@ -113,19 +127,24 @@ public class ClaimManager {
         }, 600L, 600L);
     }
 
-    /** Título ao entrar/sair da própria base. */
+    /** Título ao entrar/sair de uma base sua OU da qual você é membro. */
     private void baseTick(PlayerProfile profile) {
         Player player = plugin.getServer().getPlayer(profile.getUuid());
         if (player == null) {
             return;
         }
-        boolean now = isInOwnBase(player);
+        Claim base = memberBaseAt(player);
+        boolean now = base != null;
         Boolean was = inBase.put(profile.getUuid(), now);
         if (was == null || was == now) {
             return;
         }
         if (now) {
-            player.showTitle(Title.title(Component.text("🏠 Sua base", NamedTextColor.GREEN), Component.empty(),
+            boolean owner = base.owner().equals(profile.getUuid());
+            Component top = owner
+                    ? Component.text("🏠 Sua base", NamedTextColor.GREEN)
+                    : Component.text("🏠 Base aliada", NamedTextColor.AQUA);
+            player.showTitle(Title.title(top, Component.empty(),
                     Title.Times.times(Duration.ofMillis(200), Duration.ofMillis(1200), Duration.ofMillis(400))));
         } else {
             player.showTitle(Title.title(Component.text("Saindo da base", NamedTextColor.GRAY), Component.empty(),
@@ -138,14 +157,20 @@ public class ClaimManager {
         return c != null && c.owner().equals(player.getUniqueId());
     }
 
-    public Claim claimByNucleo(org.bukkit.Location loc) {
-        String world = loc.getWorld().getName();
-        for (Claim c : claims.values()) {
-            if (c.world().equals(world) && c.isNucleo(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) {
-                return c;
-            }
+    /** Base (própria OU da qual o jogador é membro) em que ele está, ou null. */
+    public Claim memberBaseAt(Player player) {
+        Claim c = claimAt(player.getLocation());
+        if (c == null) {
+            return null;
         }
-        return null;
+        UUID uuid = player.getUniqueId();
+        return (c.owner().equals(uuid) || c.isMember(uuid)) ? c : null;
+    }
+
+    public Claim claimByNucleo(org.bukkit.Location loc) {
+        // O núcleo fica dentro da região do claim, então o índice acha o claim e só confere o ponto.
+        Claim c = claimAt(loc);
+        return (c != null && c.isNucleo(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ())) ? c : null;
     }
 
     public void disable() {
@@ -155,7 +180,18 @@ public class ClaimManager {
         if (saveTask != null) {
             saveTask.cancel();
         }
-        saveClaims();
+        // Snapshot final na main thread, drena as escritas pendentes e grava sincronamente (shutdown).
+        FileConfiguration cfg = buildClaimsConfig();
+        claimIo.shutdown();
+        try {
+            if (!claimIo.awaitTermination(5, TimeUnit.SECONDS)) {
+                plugin.getLogger().warning("Escritas de claims pendentes não terminaram a tempo.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        writeClaims(cfg);
+        dirty = false;
     }
 
     /** Registra um bloco construído dentro da base (para apagar a construção ao remover). */
@@ -192,22 +228,60 @@ public class ClaimManager {
         return claims.containsKey(uuid);
     }
 
+    /** Há ALGUMA base no servidor? Atalho barato p/ pular checagens caras quando não há claims. */
+    public boolean hasAnyClaims() {
+        return !claims.isEmpty();
+    }
+
     public Claim getClaim(UUID uuid) {
         return claims.get(uuid);
     }
 
-    /** Claim que contém um ponto, ou null. */
+    /** Claim que contém um ponto, ou null. Usa o índice por chunk (O(poucos) em vez de O(n)). */
     public Claim claimAt(Location loc) {
+        if (loc.getWorld() == null) {
+            return null;
+        }
         String world = loc.getWorld().getName();
         int x = loc.getBlockX();
         int y = loc.getBlockY();
         int z = loc.getBlockZ();
-        for (Claim c : claims.values()) {
-            if (c.world().equals(world) && c.contains(x, y, z)) {
+        List<Claim> bucket = claimIndex.get(chunkKey(world, x >> 4, z >> 4));
+        if (bucket == null) {
+            return null;
+        }
+        for (Claim c : bucket) {
+            if (c.contains(x, y, z)) {
                 return c;
             }
         }
         return null;
+    }
+
+    private static String chunkKey(String world, int chunkX, int chunkZ) {
+        return world + ":" + chunkX + ":" + chunkZ;
+    }
+
+    /** Registra um claim em todos os chunks que ele toca. */
+    private void indexAdd(Claim c) {
+        for (int cx = c.minX() >> 4; cx <= (c.maxX() >> 4); cx++) {
+            for (int cz = c.minZ() >> 4; cz <= (c.maxZ() >> 4); cz++) {
+                claimIndex.computeIfAbsent(chunkKey(c.world(), cx, cz), k -> new ArrayList<>()).add(c);
+            }
+        }
+    }
+
+    /** Remove um claim do índice. */
+    private void indexRemove(Claim c) {
+        for (int cx = c.minX() >> 4; cx <= (c.maxX() >> 4); cx++) {
+            for (int cz = c.minZ() >> 4; cz <= (c.maxZ() >> 4); cz++) {
+                String key = chunkKey(c.world(), cx, cz);
+                List<Claim> bucket = claimIndex.get(key);
+                if (bucket != null && bucket.remove(c) && bucket.isEmpty()) {
+                    claimIndex.remove(key);
+                }
+            }
+        }
     }
 
     /** Construir: dono OU membro com a permissão de quebrar/colocar. */
@@ -242,6 +316,7 @@ public class ClaimManager {
 
     public void removeMember(Claim claim, UUID member) {
         claim.removeMember(member);
+        lockedChests().revokeInClaim(claim, member); // tira o acesso a baús que ele já tinha destrancado
         saveClaims();
     }
 
@@ -289,12 +364,15 @@ public class ClaimManager {
         if (hasClaim(player.getUniqueId())) {
             return false;
         }
+        // Infla a área pelo buffer: garante uma distância mínima entre bases (sem coladinhas).
+        int b = claimBuffer;
         for (Claim c : claims.values()) {
-            if (c.world().equals(world) && c.overlaps2D(area[0], area[1], area[2], area[3])) {
+            if (c.world().equals(world)
+                    && c.overlaps2D(area[0] - b, area[1] + b, area[2] - b, area[3] + b)) {
                 return false;
             }
         }
-        return true; // regras futuras (distância de construções, etc.) entram aqui
+        return true;
     }
 
     /** Clique direito no livro: trava a posição atual como pendente. */
@@ -369,6 +447,7 @@ public class ClaimManager {
                 p.minX(), p.maxX(), p.minZ(), p.maxZ(), minY, maxY, cx, cy, cz);
         claim.setGround(ground);
         claims.put(player.getUniqueId(), claim);
+        indexAdd(claim);
         pending.remove(player.getUniqueId());
         saveClaims();
         consumeBook(player);
@@ -381,10 +460,16 @@ public class ClaimManager {
     }
 
     private void consumeBook(Player player) {
-        ItemStack hand = player.getInventory().getItemInMainHand();
-        plugin.getItemRegistry().resolve(hand)
-                .filter(ci -> ci.id().equals(BOOK_ID))
-                .ifPresent(ci -> hand.setAmount(hand.getAmount() - 1));
+        // Procura o Livro de Base em TODO o inventário (não só na mão): senão dava p/ confirmar
+        // segurando outro item e ficar com o livro (base de graça).
+        ItemStack[] contents = player.getInventory().getContents();
+        for (ItemStack s : contents) {
+            if (s != null && plugin.getItemRegistry().resolve(s)
+                    .map(ci -> ci.id().equals(BOOK_ID)).orElse(false)) {
+                s.setAmount(s.getAmount() - 1);
+                return;
+            }
+        }
     }
 
     /** Remove a base: apaga a construção e TODOS os itens/baús, tira o núcleo e devolve um Livro de Base. */
@@ -400,6 +485,7 @@ public class ClaimManager {
         claim.placed().clear();
         lockedChests.removeLocksInClaim(claim); // remove as trancas dos baús (conteúdo é apagado)
         claims.remove(claim.owner());
+        indexRemove(claim);
         inBase.remove(claim.owner());
         saveClaims();
         owner.closeInventory();
@@ -440,9 +526,14 @@ public class ClaimManager {
 
     private void clearAir(World w, int x, int y, int z) {
         Block b = w.getBlockAt(x, y, z);
-        if (!b.getType().isAir()) {
-            b.setType(Material.AIR, false);
+        if (b.getType().isAir()) {
+            return;
         }
+        // Esvazia baús/contêineres ANTES de apagar, p/ não dropar nem duplicar os itens.
+        if (b.getState() instanceof org.bukkit.block.Container container) {
+            container.getInventory().clear();
+        }
+        b.setType(Material.AIR, false);
     }
 
     /** Mostra as 4 extremidades da base por alguns segundos, só na tela do jogador. */
@@ -528,7 +619,13 @@ public class ClaimManager {
     private void loadConfig() {
         FileConfiguration c = configManager.loadConfig("claim.yml");
         this.enabled = c.getBoolean("enabled", true);
-        this.size = Math.max(2, c.getInt("size", 20));
+        int requestedSize = Math.max(2, c.getInt("size", 20));
+        // packRel empacota X/Z relativos em 6 bits (máx 63), então a base não pode passar de 64.
+        this.size = Math.min(64, requestedSize);
+        if (requestedSize > 64) {
+            plugin.getLogger().warning("claim.size " + requestedSize + " excede o máximo (64); usando 64.");
+        }
+        this.claimBuffer = Math.max(0, c.getInt("buffer", 8)); // distância mínima entre bases
         this.heightUp = Math.max(1, c.getInt("height-up", 15));
         this.heightDown = Math.max(0, c.getInt("height-down", 1));
         this.nearOffset = c.getInt("near-offset", 5);
@@ -618,6 +715,7 @@ public class ClaimManager {
 
     private void loadClaims() {
         claims.clear();
+        claimIndex.clear();
         if (!dataFile.exists()) {
             return;
         }
@@ -650,30 +748,55 @@ public class ClaimManager {
                         }
                     }
                 }
+                // placed/ground em try/catch próprio: 1 campo corrompido NÃO derruba a base inteira.
                 String placedStr = cfg.getString(key + ".placed");
                 if (placedStr != null) {
-                    ByteBuffer pb = ByteBuffer.wrap(Base64.getDecoder().decode(placedStr));
-                    while (pb.remaining() >= 4) {
-                        claim.placed().add(pb.getInt());
+                    try {
+                        ByteBuffer pb = ByteBuffer.wrap(Base64.getDecoder().decode(placedStr));
+                        while (pb.remaining() >= 4) {
+                            claim.placed().add(pb.getInt());
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        plugin.getLogger().warning("claims.yml: 'placed' corrompido em " + key + " (ignorado).");
                     }
                 }
                 String groundStr = cfg.getString(key + ".ground");
                 if (groundStr != null) {
-                    ByteBuffer gb = ByteBuffer.wrap(Base64.getDecoder().decode(groundStr));
-                    int[] g = new int[gb.remaining() / 4];
-                    for (int i = 0; i < g.length; i++) {
-                        g[i] = gb.getInt();
+                    try {
+                        ByteBuffer gb = ByteBuffer.wrap(Base64.getDecoder().decode(groundStr));
+                        int[] g = new int[gb.remaining() / 4];
+                        for (int i = 0; i < g.length; i++) {
+                            g[i] = gb.getInt();
+                        }
+                        claim.setGround(g);
+                    } catch (IllegalArgumentException ex) {
+                        plugin.getLogger().warning("claims.yml: 'ground' corrompido em " + key + " (ignorado).");
                     }
-                    claim.setGround(g);
                 }
                 claims.put(uuid, claim);
+                indexAdd(claim);
             } catch (IllegalArgumentException ignored) {
                 // chave inválida
             }
         }
     }
 
+    /** Constrói o snapshot do YAML na MAIN thread (lê o estado dos claims) e escreve no disco em background. */
     private void saveClaims() {
+        FileConfiguration cfg = buildClaimsConfig();
+        dirty = false;
+        claimIo.execute(() -> writeClaims(cfg));
+    }
+
+    private void writeClaims(FileConfiguration cfg) {
+        try {
+            cfg.save(dataFile);
+        } catch (IOException ex) {
+            plugin.getLogger().warning("Falha ao salvar claims.yml: " + ex.getMessage());
+        }
+    }
+
+    private FileConfiguration buildClaimsConfig() {
         FileConfiguration cfg = new YamlConfiguration();
         for (Claim c : claims.values()) {
             String base = c.owner().toString();
@@ -707,12 +830,7 @@ public class ClaimManager {
                 cfg.set(base + ".ground", Base64.getEncoder().encodeToString(gb.array()));
             }
         }
-        try {
-            cfg.save(dataFile);
-            dirty = false;
-        } catch (IOException ex) {
-            plugin.getLogger().warning("Falha ao salvar claims.yml: " + ex.getMessage());
-        }
+        return cfg;
     }
 
     private record Pending(String world, int minX, int maxX, int minZ, int maxZ) {

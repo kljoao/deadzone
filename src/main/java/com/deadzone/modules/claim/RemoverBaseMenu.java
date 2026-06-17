@@ -32,6 +32,11 @@ public class RemoverBaseMenu extends Menu {
 
     @Override
     protected void build(Player viewer) {
+        if (!claim.owner().equals(viewer.getUniqueId())) {
+            viewer.closeInventory();
+            viewer.sendActionBar(Component.text("Apenas o dono da base pode fazer isso.", NamedTextColor.RED));
+            return;
+        }
         setItem(11, ClaimIcons.item(Material.LIME_CONCRETE,
                         Component.text("Confirmar remoção", NamedTextColor.GREEN),
                         Component.text("Apaga a construção, os baús,", NamedTextColor.GRAY),

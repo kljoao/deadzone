@@ -38,12 +38,14 @@ public class BleedingListener implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        manager.clear(event.getPlayer().getUniqueId());
+        // Só suspende (esconde a bossbar); o sangramento volta no relog (sem cura grátis ao deslogar).
+        manager.suspendForLogout(event.getPlayer().getUniqueId());
+        plugin.getMedicineManager().removeCooldowns(event.getPlayer().getUniqueId()); // purga cooldowns
     }
 
     @EventHandler
     public void onDeath(PlayerDeathEvent event) {
-        manager.clear(event.getEntity().getUniqueId());
+        manager.clear(event.getEntity().getUniqueId()); // morte cura
     }
 }
 

@@ -22,7 +22,21 @@ public class PlayerProfile {
     private PlayerClass playerClass;
     private long xp;
     private long totalXpEarned;
+    private long balance; // scraps (moeda) — NÃO é zerado na morte
+    private long bounty;  // recompensa pela cabeça do jogador (scraps) — persiste, zera ao ser morto
     private final Set<String> unlockedSkills;
+
+    // recompensa diária (login streak) — persistido, não zera na morte
+    private long dailyStreak;     // dias consecutivos resgatados (cresce; a recompensa cicla)
+    private long lastDailyClaim;  // epoch ms do último resgate (a data é derivada disso)
+
+    // estatísticas vitalícias — NÃO zeram na morte
+    private long zombiesKilled;
+    private long playersKilled;
+    private long deaths;
+    private long revives;         // reanimações concluídas (como reanimador)
+    private long bestSurvivalMs;  // maior tempo vivido numa única vida
+    private long lifeStartedAt;   // início da vida atual (reinicia na morte) — base do "tempo sobrevivido"
 
     private long firstJoin;
     private long lastSeen;
@@ -48,6 +62,7 @@ public class PlayerProfile {
         long now = System.currentTimeMillis();
         p.firstJoin = now;
         p.lastSeen = now;
+        p.lifeStartedAt = now;
         p.dirty = true;
         return p;
     }
@@ -85,8 +100,153 @@ public class PlayerProfile {
                 firstJoin,
                 lastSeen,
                 downedState != null ? downedState.getExpiresAt() : 0L,
-                new HashSet<>(unlockedSkills)
+                balance,
+                bounty,
+                new HashSet<>(unlockedSkills),
+                dailyStreak,
+                lastDailyClaim,
+                zombiesKilled,
+                playersKilled,
+                deaths,
+                revives,
+                bestSurvivalMs,
+                lifeStartedAt
         );
+    }
+
+    // ----- recompensa diária -----
+
+    public long getDailyStreak() {
+        return dailyStreak;
+    }
+
+    public void setDailyStreak(long dailyStreak) {
+        this.dailyStreak = dailyStreak;
+        this.dirty = true;
+    }
+
+    public long getLastDailyClaim() {
+        return lastDailyClaim;
+    }
+
+    public void setLastDailyClaim(long lastDailyClaim) {
+        this.lastDailyClaim = lastDailyClaim;
+        this.dirty = true;
+    }
+
+    // ----- estatísticas (vitalícias) -----
+
+    public long getZombiesKilled() {
+        return zombiesKilled;
+    }
+
+    public void setZombiesKilled(long v) {
+        this.zombiesKilled = v;
+    }
+
+    public void addZombieKill() {
+        this.zombiesKilled++;
+        this.dirty = true;
+    }
+
+    public long getPlayersKilled() {
+        return playersKilled;
+    }
+
+    public void setPlayersKilled(long v) {
+        this.playersKilled = v;
+    }
+
+    public void addPlayerKill() {
+        this.playersKilled++;
+        this.dirty = true;
+    }
+
+    public long getDeaths() {
+        return deaths;
+    }
+
+    public void setDeaths(long v) {
+        this.deaths = v;
+    }
+
+    public void addDeath() {
+        this.deaths++;
+        this.dirty = true;
+    }
+
+    public long getRevives() {
+        return revives;
+    }
+
+    public void setRevives(long v) {
+        this.revives = v;
+    }
+
+    public void addRevive() {
+        this.revives++;
+        this.dirty = true;
+    }
+
+    public long getBestSurvivalMs() {
+        return bestSurvivalMs;
+    }
+
+    public void setBestSurvivalMs(long v) {
+        this.bestSurvivalMs = v;
+    }
+
+    public long getLifeStartedAt() {
+        return lifeStartedAt;
+    }
+
+    public void setLifeStartedAt(long lifeStartedAt) {
+        this.lifeStartedAt = lifeStartedAt;
+        this.dirty = true;
+    }
+
+    /** Fim de uma vida: atualiza o recorde de sobrevivência e reinicia o cronômetro da vida. */
+    public void recordDeathSurvival(long now) {
+        if (lifeStartedAt > 0 && now > lifeStartedAt) {
+            long span = now - lifeStartedAt;
+            if (span > bestSurvivalMs) {
+                this.bestSurvivalMs = span;
+            }
+        }
+        this.lifeStartedAt = now;
+        this.dirty = true;
+    }
+
+    // ----- scraps (moeda) -----
+
+    public long getBalance() {
+        return balance;
+    }
+
+    /** Define o saldo (nunca negativo). */
+    public void setBalance(long balance) {
+        this.balance = Math.max(0L, balance);
+        this.dirty = true;
+    }
+
+    /** Soma (ou subtrai, se delta < 0) ao saldo, com piso em 0. */
+    public void addBalance(long delta) {
+        setBalance(this.balance + delta);
+    }
+
+    // ----- bounty (recompensa pela cabeça) -----
+
+    public long getBounty() {
+        return bounty;
+    }
+
+    public void setBounty(long bounty) {
+        this.bounty = Math.max(0L, bounty);
+        this.dirty = true;
+    }
+
+    public void addBounty(long delta) {
+        setBounty(this.bounty + delta);
     }
 
     // setters de campos persistidos marcam dirty

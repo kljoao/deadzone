@@ -210,6 +210,19 @@ public class InfectionManager {
         }
     }
 
+    /** Saída: cancela o colapso (task órfã), purga os mapas por-jogador e tira os efeitos de estágio. */
+    public void handleQuit(Player player) {
+        UUID uuid = player.getUniqueId();
+        cancelCollapse(uuid);
+        lastStage.remove(uuid);
+        symptomsSuppressedUntil.remove(uuid);
+        for (InfectionConfig.Stage stage : config.stages()) {
+            for (InfectionConfig.EffectSpec e : stage.effects()) {
+                player.removePotionEffect(e.type());
+            }
+        }
+    }
+
     public void killByInfection(PlayerProfile p) {
         p.setDyingFromInfection(true);
         lastStage.remove(p.getUuid());

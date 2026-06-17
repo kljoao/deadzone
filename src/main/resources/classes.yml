@@ -108,7 +108,7 @@ skills:
     slot: 12
     prerequisites: []
     description:
-      - "-15% de chance de ser infectado."
+      - "-5% de chance de ser infectado."
   bru_atordoamento:
     name: "Armas de Contusão"
     class: BRUTO
@@ -141,3 +141,16 @@ skills:
     description:
       - "Abra contêineres trancados"
       - "instantaneamente com o Pé de Cabra."
+
+  # ----- Universal (todas as classes) -----
+  armeiro:
+    name: "Armeiro"
+    class: NONE                 # NONE = aparece na árvore de TODAS as classes
+    icon: CROSSBOW
+    cost: 300
+    slot: 22
+    prerequisites: []
+    description:
+      - "Fabrica ARMAS de fogo e ANEXOS"
+      - "(silenciador, mira 8x) na Bancada."
+      - "Aplicar mods continua livre p/ todos."

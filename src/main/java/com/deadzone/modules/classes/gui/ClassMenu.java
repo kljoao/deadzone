@@ -81,12 +81,18 @@ public class ClassMenu extends Menu {
         if (profile == null) {
             return;
         }
-        if (!plugin.getClassManager().canSelect(profile)) {
-            player.sendMessage(Component.text("Você já escolheu sua classe nesta vida.", NamedTextColor.RED));
+        PlayerClass current = profile.getPlayerClass();
+        if (clazz == current) {
+            player.sendActionBar(Component.text("Essa já é a sua classe.", NamedTextColor.GRAY));
+            return;
+        }
+        if (current == PlayerClass.NONE) {
+            // Primeira escolha: gratuita.
+            plugin.getClassManager().selectClass(player, profile, clazz);
             player.closeInventory();
             return;
         }
-        plugin.getClassManager().selectClass(player, profile, clazz);
-        player.closeInventory();
+        // Troca de classe: confirma (vai zerar XP e habilidades).
+        new ConfirmClassChangeMenu(plugin, clazz).open(player);
     }
 }

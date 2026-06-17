@@ -37,6 +37,11 @@ public class MembrosMenu extends Menu {
 
     @Override
     protected void build(Player viewer) {
+        if (!claim.owner().equals(viewer.getUniqueId())) {
+            viewer.closeInventory();
+            viewer.sendActionBar(Component.text("Apenas o dono da base pode fazer isso.", NamedTextColor.RED));
+            return;
+        }
         int slot = 0;
         for (UUID member : claim.members().keySet()) {
             if (slot >= 45) {

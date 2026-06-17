@@ -1,0 +1,12 @@
+{
+  "parent": "deadzone:item/ak47",
+  "display": {
+    "thirdperson_righthand": {"rotation": [-90, 0, 90], "translation": [-6.75, 2, 0.75], "scale": [0.8, 0.8, 0.8]},
+    "thirdperson_lefthand": {"scale": [0, 0, 0]},
+    "firstperson_righthand": {"scale": [0, 0, 0]},
+    "firstperson_lefthand": {"scale": [0, 0, 0]},
+    "ground": {"rotation": [-90, 0, 0], "translation": [-3, 4, -6.25], "scale": [0.8, 0.8, 0.8]},
+    "gui": {"rotation": [-55, 45, -175], "translation": [3.5, -4.75, 0], "scale": [0.8, 0.8, 0.8]},
+    "fixed": {"rotation": [-90, -40, 0], "translation": [-6.75, -1.25, -13.25], "scale": [1.6, 1.6, 1.6]}
+  }
+}

@@ -5,6 +5,18 @@
   },
   "overrides": [
     {"predicate": {"custom_model_data": 3001}, "model": "deadzone:item/g17"},
-    {"predicate": {"custom_model_data": 3101}, "model": "deadzone:item/g17_drawing"}
+    {"predicate": {"custom_model_data": 3002}, "model": "deadzone:item/ump45_standard"},
+    {"predicate": {"custom_model_data": 3003}, "model": "deadzone:item/ump45_suppressed"},
+    {"predicate": {"custom_model_data": 3004}, "model": "deadzone:item/ak47"},
+    {"predicate": {"custom_model_data": 3005}, "model": "deadzone:item/kar98k"},
+    {"predicate": {"custom_model_data": 3006}, "model": "deadzone:item/kar98k_scope"},
+    {"predicate": {"custom_model_data": 3007}, "model": "deadzone:item/kar98k_scope_sup"},
+    {"predicate": {"custom_model_data": 3101}, "model": "deadzone:item/g17_drawing"},
+    {"predicate": {"custom_model_data": 3102}, "model": "deadzone:item/ump45_standard_drawing"},
+    {"predicate": {"custom_model_data": 3103}, "model": "deadzone:item/ump45_suppressed_drawing"},
+    {"predicate": {"custom_model_data": 3104}, "model": "deadzone:item/ak47_drawing"},
+    {"predicate": {"custom_model_data": 3105}, "model": "deadzone:item/kar98k_drawing"},
+    {"predicate": {"custom_model_data": 3106}, "model": "deadzone:item/kar98k_scope_drawing"},
+    {"predicate": {"custom_model_data": 3107}, "model": "deadzone:item/kar98k_scope_sup_drawing"}
   ]
 }

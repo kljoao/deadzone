@@ -35,6 +35,7 @@ public class XpListener implements Listener {
         if (profile == null) {
             return;
         }
+        profile.addZombieKill(); // estatística vitalícia
         String mutantType = entity.getPersistentDataContainer().get(EntityKeys.ZOMBIE_TYPE, PersistentDataType.STRING);
         long amount = (mutantType != null)
                 ? manager.config().xpMutantKill(mutantType)

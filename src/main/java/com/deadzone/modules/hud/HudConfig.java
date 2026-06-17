@@ -11,6 +11,7 @@ public class HudConfig {
     private int animationInterval;
     private int barLength;
     private String title;
+    private boolean titleLogo;
     private String footer;
 
     public HudConfig(ConfigManager configManager) {
@@ -24,6 +25,7 @@ public class HudConfig {
         this.animationInterval = Math.max(1, c.getInt("animation-interval-ticks", 3));
         this.barLength = Math.max(4, c.getInt("bar-length", 10));
         this.title = c.getString("title", "DEADZONE");
+        this.titleLogo = c.getBoolean("title-logo", true);
         this.footer = c.getString("footer", "<dark_gray>deadzone");
     }
 
@@ -41,6 +43,10 @@ public class HudConfig {
 
     public String title() {
         return title;
+    }
+
+    public boolean titleLogo() {
+        return titleLogo;
     }
 
     public String footer() {

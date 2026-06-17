@@ -2,7 +2,6 @@ package com.deadzone.command;
 
 import com.deadzone.DeadzonePlugin;
 import com.deadzone.core.config.Messages;
-import com.deadzone.core.debug.TestMenu;
 import com.deadzone.core.item.CustomItem;
 import com.deadzone.core.profile.PlayerProfile;
 import com.deadzone.modules.events.mutant.MutantType;
@@ -25,11 +24,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Comando administrativo/debug raiz. Tudo aqui exige a permissão deadzone.admin.
+ * Comando administrativo/debug raiz. Cada subcomando exige sua permissão
+ * deadzone.admin.&lt;sub&gt; (o pai deadzone.admin concede todas).
  */
 public class DeadzoneCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBCOMMANDS = List.of("info", "reload", "profile", "giveitem", "menu", "infection", "skill", "xp", "lock", "unlock", "zone", "bloodmoon", "mutant");
+    private static final List<String> SUBCOMMANDS = List.of("info", "reload", "profile", "giveitem", "infection", "skill", "xp", "lock", "unlock", "zone", "bloodmoon", "mutant", "gunskin");
     private static final List<String> MUTANT_TYPES = List.of("RUNNER", "TANK", "EXPLODER");
     private static final List<String> INFECTION_ACTIONS = List.of("get", "set", "infect");
     private static final List<String> SKILL_ACTIONS = List.of("add", "remove");
@@ -47,22 +47,27 @@ public class DeadzoneCommand implements CommandExecutor, TabCompleter {
                              @NotNull String label, @NotNull String[] args) {
         Messages msg = plugin.getMessages();
 
-        if (!sender.hasPermission("deadzone.admin")) {
-            msg.send(sender, "no-permission");
-            return true;
-        }
-
         if (args.length == 0) {
             msg.send(sender, "unknown-subcommand");
             return true;
         }
 
-        switch (args[0].toLowerCase()) {
+        String sub = args[0].toLowerCase();
+        if (!SUBCOMMANDS.contains(sub)) {
+            msg.send(sender, "unknown-subcommand");
+            return true;
+        }
+        // Cada subcomando tem sua propria permissao (deadzone.admin.<sub>); o pai deadzone.admin concede todas.
+        if (!sender.hasPermission("deadzone.admin." + sub)) {
+            msg.send(sender, "no-permission");
+            return true;
+        }
+
+        switch (sub) {
             case "info" -> info(sender);
             case "reload" -> reload(sender);
             case "profile" -> profile(sender, args);
             case "giveitem" -> giveItem(sender, args);
-            case "menu" -> menu(sender);
             case "infection" -> infection(sender, args);
             case "skill" -> skill(sender, args);
             case "xp" -> xp(sender, args);
@@ -71,6 +76,7 @@ public class DeadzoneCommand implements CommandExecutor, TabCompleter {
             case "zone" -> zone(sender, args);
             case "bloodmoon" -> bloodmoon(sender, args);
             case "mutant" -> mutant(sender, args);
+            case "gunskin" -> gunSkin(sender, args);
             default -> msg.send(sender, "unknown-subcommand");
         }
         return true;
@@ -185,6 +191,24 @@ public class DeadzoneCommand implements CommandExecutor, TabCompleter {
         }
         player.getInventory().addItem(item.build());
         msg.send(sender, "item-given", "item", item.id());
+    }
+
+    private void gunSkin(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            plugin.getMessages().send(sender, "player-only");
+            return;
+        }
+        if (args.length < 2) {
+            sender.sendMessage(Component.text("Uso: /deadzone gunskin <skinId|none>  (segure a arma)",
+                    NamedTextColor.YELLOW));
+            return;
+        }
+        String skinId = args[1].toLowerCase();
+        if (skinId.equals("none") || skinId.equals("remover")) {
+            plugin.getFirearmManager().removeSkin(player);
+        } else {
+            plugin.getFirearmManager().applySkin(player, skinId);
+        }
     }
 
     private void skill(CommandSender sender, String[] args) {
@@ -372,22 +396,21 @@ public class DeadzoneCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void menu(CommandSender sender) {
-        if (!(sender instanceof Player player)) {
-            plugin.getMessages().send(sender, "player-only");
-            return;
-        }
-        new TestMenu().open(player);
-    }
-
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String alias, @NotNull String[] args) {
-        if (!sender.hasPermission("deadzone.admin")) {
-            return List.of();
-        }
         if (args.length == 1) {
-            return filter(SUBCOMMANDS, args[0]);
+            List<String> allowed = new ArrayList<>();
+            for (String s : SUBCOMMANDS) {
+                if (sender.hasPermission("deadzone.admin." + s)) {
+                    allowed.add(s);
+                }
+            }
+            return filter(allowed, args[0]);
+        }
+        // Completar argumentos só se o sender tiver a permissão do subcomando.
+        if (!sender.hasPermission("deadzone.admin." + args[0].toLowerCase())) {
+            return List.of();
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("giveitem")) {
             List<String> ids = new ArrayList<>();
@@ -407,6 +430,14 @@ public class DeadzoneCommand implements CommandExecutor, TabCompleter {
         }
         if (args[0].equalsIgnoreCase("zone") && args.length == 2) {
             return filter(ZONE_ACTIONS, args[1]);
+        }
+        if (args[0].equalsIgnoreCase("gunskin") && args.length == 2) {
+            List<String> ids = new ArrayList<>();
+            ids.add("none");
+            if (plugin.getFirearmManager().skins() != null) {
+                plugin.getFirearmManager().skins().all().forEach(s -> ids.add(s.id()));
+            }
+            return filter(ids, args[1]);
         }
         if (args[0].equalsIgnoreCase("bloodmoon") && args.length == 2) {
             return filter(BLOODMOON_ACTIONS, args[1]);

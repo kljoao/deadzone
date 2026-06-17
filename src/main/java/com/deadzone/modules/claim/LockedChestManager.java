@@ -29,6 +29,8 @@ public class LockedChestManager {
     private final ClaimManager claims;
     private final File file;
     private final Map<String, LockedChest> locks = new ConcurrentHashMap<>();
+    // Baús recém-colocados aguardando o dono definir o PIN: ninguém abre nesse intervalo.
+    private final Set<String> pending = ConcurrentHashMap.newKeySet();
 
     public LockedChestManager(DeadzonePlugin plugin, ClaimManager claims) {
         this.plugin = plugin;
@@ -53,23 +55,35 @@ public class LockedChestManager {
         return locks.containsKey(key(block));
     }
 
+    public void markPending(Block block) {
+        pending.add(key(block));
+    }
+
+    public void clearPending(Block block) {
+        pending.remove(key(block));
+    }
+
+    public boolean isPending(Block block) {
+        return pending.contains(key(block));
+    }
+
     public LockedChest getLock(Block block) {
         return locks.get(key(block));
     }
 
-    /** Cria uma tranca nova com PIN. */
+    /** Cria uma tranca nova com PIN (guarda só o hash). */
     public LockedChest lockNew(Block block, UUID owner, String pin) {
-        LockedChest lc = new LockedChest(owner, block.getWorld().getName(),
+        LockedChest lc = LockedChest.create(owner, block.getWorld().getName(),
                 block.getX(), block.getY(), block.getZ(), pin, new HashSet<>());
         locks.put(key(block), lc);
         save();
         return lc;
     }
 
-    /** Vincula uma posição a uma tranca existente (baú duplo): compartilha PIN e autorizados. */
+    /** Vincula uma posição a uma tranca existente (baú duplo): compartilha hash/salt e autorizados. */
     public void inherit(Block block, LockedChest source) {
         LockedChest lc = new LockedChest(source.owner(), block.getWorld().getName(),
-                block.getX(), block.getY(), block.getZ(), source.pin(), source.authorized());
+                block.getX(), block.getY(), block.getZ(), source.pinHash(), source.salt(), source.authorized());
         locks.put(key(block), lc);
         save();
     }
@@ -123,6 +137,19 @@ public class LockedChestManager {
         return count;
     }
 
+    /** Revoga a autorização de um jogador em todos os baús de um claim (ex.: membro removido da base). */
+    public void revokeInClaim(Claim claim, UUID uuid) {
+        boolean changed = false;
+        for (LockedChest lc : locks.values()) {
+            if (lc.world().equals(claim.world()) && claim.contains(lc.x(), lc.y(), lc.z())) {
+                changed |= lc.authorized().remove(uuid);
+            }
+        }
+        if (changed) {
+            save();
+        }
+    }
+
     /** Remove todas as trancas dentro de um claim (ao remover a base). */
     public void removeLocksInClaim(Claim claim) {
         boolean changed = locks.values().removeIf(lc ->
@@ -152,7 +179,6 @@ public class LockedChestManager {
             try {
                 String world = s.getString("world");
                 UUID owner = UUID.fromString(s.getString("owner"));
-                String pin = s.getString("pin");
                 Set<UUID> auth = new HashSet<>();
                 for (String a : s.getStringList("authorized")) {
                     try {
@@ -164,7 +190,14 @@ public class LockedChestManager {
                 int x = s.getInt("x");
                 int y = s.getInt("y");
                 int z = s.getInt("z");
-                LockedChest lc = new LockedChest(owner, world, x, y, z, pin, auth);
+                String pinHash = s.getString("pin-hash");
+                LockedChest lc;
+                if (pinHash != null) {
+                    lc = new LockedChest(owner, world, x, y, z, pinHash, s.getString("salt"), auth);
+                } else {
+                    // Migração: baú antigo guardava o PIN em texto puro -> converte para hash.
+                    lc = LockedChest.create(owner, world, x, y, z, s.getString("pin", "0000"), auth);
+                }
                 locks.put(world + ":" + x + ":" + y + ":" + z, lc);
             } catch (IllegalArgumentException | NullPointerException ignored) {
                 // entrada inválida
@@ -182,7 +215,8 @@ public class LockedChestManager {
             cfg.set(base + ".y", lc.y());
             cfg.set(base + ".z", lc.z());
             cfg.set(base + ".owner", lc.owner().toString());
-            cfg.set(base + ".pin", lc.pin());
+            cfg.set(base + ".pin-hash", lc.pinHash());
+            cfg.set(base + ".salt", lc.salt());
             List<String> auth = new ArrayList<>();
             for (UUID a : lc.authorized()) {
                 auth.add(a.toString());

@@ -11,6 +11,18 @@
     {
       "predicate": {"custom_model_data": 1009},
       "model": "deadzone:item/bandagem_esterilizada"
+    },
+    {
+      "predicate": {"custom_model_data": 2001},
+      "model": "deadzone:item/medicina"
+    },
+    {
+      "predicate": {"custom_model_data": 2002},
+      "model": "deadzone:item/armeiro"
+    },
+    {
+      "predicate": {"custom_model_data": 6002},
+      "model": "deadzone:item/radio"
     }
   ]
 }

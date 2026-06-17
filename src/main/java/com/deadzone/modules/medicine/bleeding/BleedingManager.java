@@ -37,6 +37,9 @@ public class BleedingManager {
     private final BleedingConfig config;
     private final Map<UUID, BossBar> bars = new HashMap<>();
     private final Map<UUID, Long> woundInfectedUntil = new HashMap<>();
+    // Estado de sangramento em mapa próprio (em memória): SOBREVIVE ao relog (sem cura grátis ao
+    // deslogar). Limpo só na morte/cura. Reinicia o servidor zera (não é exploit do jogador).
+    private final Map<UUID, BleedState> bleeding = new HashMap<>();
 
     public BleedingManager(DeadzonePlugin plugin, BleedingConfig config) {
         this.plugin = plugin;
@@ -54,13 +57,23 @@ public class BleedingManager {
 
     /** Rola a chance de sangrar ao ser atingido por um zumbi e aplica/agrava. */
     public void rollOnZombieHit(Player player, PlayerProfile profile) {
-        if (ThreadLocalRandom.current().nextDouble() >= config.chanceOnHit()) {
+        applyBleed(player, profile, config.chanceOnHit());
+    }
+
+    /** Rola a chance de sangrar ao levar um tiro (bala de arma de fogo). */
+    public void rollOnFirearmHit(Player player, PlayerProfile profile) {
+        applyBleed(player, profile, config.firearmChance());
+    }
+
+    private void applyBleed(Player player, PlayerProfile profile, double chance) {
+        if (ThreadLocalRandom.current().nextDouble() >= chance) {
             return;
         }
-        BleedState state = profile.getBleedState();
+        UUID uuid = profile.getUuid();
+        BleedState state = bleeding.get(uuid);
         if (state == null) {
             long next = System.currentTimeMillis() + config.intervalMillisFor(1);
-            profile.setBleedState(new BleedState(1, next));
+            bleeding.put(uuid, new BleedState(1, next));
             player.sendActionBar(Component.text("Você começou a sangrar!", NamedTextColor.RED));
             player.playSound(player, Sound.ENTITY_PLAYER_HURT, 0.6f, 1.3f);
         } else {
@@ -68,14 +81,18 @@ public class BleedingManager {
         }
     }
 
+    /** Estado de sangramento atual do jogador (ou null). */
+    public BleedState getBleed(UUID uuid) {
+        return bleeding.get(uuid);
+    }
+
     /** Para o sangramento (usado pela bandagem). @return true se havia o que estancar. */
     public boolean stop(PlayerProfile profile) {
-        if (profile.getBleedState() == null) {
+        UUID uuid = profile.getUuid();
+        if (bleeding.remove(uuid) == null) {
             return false;
         }
-        profile.setBleedState(null);
-        Player player = plugin.getServer().getPlayer(profile.getUuid());
-        clearBar(profile.getUuid(), player);
+        clearBar(uuid, plugin.getServer().getPlayer(uuid));
         return true;
     }
 
@@ -86,7 +103,7 @@ public class BleedingManager {
         if (player != null) {
             tickWound(player, uuid);
         }
-        BleedState state = profile.getBleedState();
+        BleedState state = bleeding.get(uuid);
 
         if (state == null) {
             clearBar(uuid, player);
@@ -117,9 +134,15 @@ public class BleedingManager {
         }
     }
 
-    /** Remove a BossBar de um jogador (saída/morte). */
+    /** Morte: limpa sangramento, ferida infeccionada e BossBar (a morte "cura" tudo). */
     public void clear(UUID uuid) {
+        bleeding.remove(uuid);
         woundInfectedUntil.remove(uuid);
+        clearBar(uuid, plugin.getServer().getPlayer(uuid));
+    }
+
+    /** Saída: só esconde a BossBar; o estado fica em memória e volta no relog (sem cura grátis). */
+    public void suspendForLogout(UUID uuid) {
         clearBar(uuid, plugin.getServer().getPlayer(uuid));
     }
 

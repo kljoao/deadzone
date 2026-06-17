@@ -16,6 +16,16 @@ public record ProfileSnapshot(
         long firstJoin,
         long lastSeen,
         long downedUntil,
-        Set<String> skills
+        long balance,
+        long bounty,
+        Set<String> skills,
+        long dailyStreak,
+        long lastDailyClaim,
+        long zombiesKilled,
+        long playersKilled,
+        long deaths,
+        long revives,
+        long bestSurvivalMs,
+        long lifeStartedAt
 ) {
 }

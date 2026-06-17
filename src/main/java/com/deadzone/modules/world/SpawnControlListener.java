@@ -43,9 +43,14 @@ public class SpawnControlListener implements Listener {
             return;
         }
         LivingEntity entity = event.getEntity();
-        if (entity instanceof Enemy && !config.allowedHostiles().contains(entity.getType())) {
-            event.setCancelled(true);
-            return;
+        if (!config.allowedHostiles().contains(entity.getType())) {
+            // Hostil não-permitido (skeleton, creeper...) OU mob passivo/neutro (animal, ambiente):
+            // bloqueia. Passivos só passam se block-passive=false ou estiverem em allowed-passive.
+            boolean hostile = entity instanceof Enemy;
+            if (hostile || (config.blockPassive() && !config.allowedPassive().contains(entity.getType()))) {
+                event.setCancelled(true);
+                return;
+            }
         }
         // Sem baby zombies: converte para adulto no spawn (e reforça no tick seguinte).
         if (config.noBaby() && entity instanceof Zombie zombie && zombie.isBaby()) {

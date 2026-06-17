@@ -10,6 +10,7 @@ public class BleedingConfig {
     private final ConfigManager configManager;
 
     private double chanceOnHit;
+    private double firearmChance;
     private int maxSeverity;
     private double damagePerTick;
     private double baseIntervalSeconds;
@@ -29,6 +30,7 @@ public class BleedingConfig {
     public void load() {
         var c = configManager.loadConfig("bleeding.yml");
         this.chanceOnHit = c.getDouble("chance-on-zombie-hit", 0.50);
+        this.firearmChance = c.getDouble("chance-on-firearm-hit", 0.50);
         this.maxSeverity = Math.max(1, c.getInt("max-severity", 6));
         this.damagePerTick = c.getDouble("damage-per-tick", 1.0);
         this.baseIntervalSeconds = Math.max(1, c.getDouble("base-interval-seconds", 15));
@@ -48,6 +50,10 @@ public class BleedingConfig {
 
     public double chanceOnHit() {
         return chanceOnHit;
+    }
+
+    public double firearmChance() {
+        return firearmChance;
     }
 
     public int maxSeverity() {

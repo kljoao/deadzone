@@ -4,36 +4,233 @@ main: com.deadzone.DeadzonePlugin
 api-version: '1.21'
 description: ${project.description}
 authors: [Deadzone Team]
+softdepend: [ProtocolLib, Vault, VaultUnlocked]
 
 commands:
   deadzone:
     description: Comando raiz administrativo/debug do Deadzone.
-    usage: /deadzone <info|reload|profile|giveitem|menu|infection|skill>
+    usage: /deadzone <info|reload|profile|giveitem|infection|skill|xp|lock|unlock|zone|bloodmoon|mutant>
     aliases: [dz]
   bancada:
     description: Abre a Bancada Médica.
     usage: /bancada
     aliases: [medbench]
+    permission: deadzone.command.bancada
+    permission-message: "§cVocê não tem permissão para isso."
   classe:
     description: Abre o menu de seleção de classe.
     usage: /classe
     aliases: [class, classes]
+    permission: deadzone.command.classe
+    permission-message: "§cVocê não tem permissão para isso."
   skills:
     description: Abre a árvore de habilidades.
     usage: /skills
     aliases: [habilidades, skilltree]
+    permission: deadzone.command.skills
+    permission-message: "§cVocê não tem permissão para isso."
   confirmar:
     description: Confirma a reivindicação da base.
     usage: /confirmar base
+    permission: deadzone.command.base
+    permission-message: "§cVocê não tem permissão para isso."
   minhabase:
     description: Mostra as extremidades da sua base por alguns segundos.
     usage: /minhabase
     aliases: [limitesbase]
+    permission: deadzone.command.base
+    permission-message: "§cVocê não tem permissão para isso."
+  saldo:
+    description: Ver seu saldo de scraps.
+    usage: /saldo
+    permission: deadzone.command.economia
+    permission-message: "§cVocê não tem permissão para isso."
+  pagar:
+    description: Transferir scraps para outro jogador.
+    usage: /pagar <jogador> <valor>
+    aliases: [pay, pix]
+    permission: deadzone.command.economia
+    permission-message: "§cVocê não tem permissão para isso."
+  cobrar:
+    description: Cobrar scraps de outro jogador.
+    usage: /cobrar <jogador> <valor>
+    permission: deadzone.command.economia
+    permission-message: "§cVocê não tem permissão para isso."
+  baltop:
+    description: Top 10 jogadores mais ricos.
+    usage: /baltop
+    permission: deadzone.command.economia
+    permission-message: "§cVocê não tem permissão para isso."
+  eco:
+    description: Administrar a economia (scraps).
+    usage: /eco <dar|tirar|definir|resetar> <jogador> [valor]
+    permission: deadzone.admin.eco
+    permission-message: "§cVocê não tem permissão para isso."
+  loot:
+    description: Marcar/gerenciar baús de loot do mundo.
+    usage: /loot <mark|unmark|list|reload> [tipo]
+    permission: deadzone.admin.loot
+    permission-message: "§cVocê não tem permissão para isso."
+  diario:
+    description: Recompensa diária (streak de login).
+    usage: /diario
+    aliases: [daily, recompensa, recompensadiaria]
+    permission: deadzone.command.diario
+    permission-message: "§cVocê não tem permissão para isso."
+  stats:
+    description: Suas estatísticas de sobrevivência (ou de outro jogador).
+    usage: /stats [jogador]
+    aliases: [estatisticas, stat]
+    permission: deadzone.command.stats
+    permission-message: "§cVocê não tem permissão para isso."
+  clan:
+    description: Gerenciar clãs (criar, convidar, cofre, etc.).
+    usage: /clan <criar|convidar|info|...>
+    aliases: [cla, clã, clans]
+    permission: deadzone.command.clan
+    permission-message: "§cVocê não tem permissão para isso."
+  c:
+    description: Chat do clan.
+    usage: /c <mensagem>
+    aliases: [clanchat, cc]
+    permission: deadzone.command.clan
+    permission-message: "§cVocê não tem permissão para isso."
+  clantop:
+    description: Ranking dos melhores clãs.
+    usage: /clantop
+    aliases: [topclans]
+    permission: deadzone.command.clan
+    permission-message: "§cVocê não tem permissão para isso."
+  bounty:
+    description: Ver/colocar recompensa pela cabeça de um jogador.
+    usage: /bounty <jogador> <valor> | /bounty top
+    aliases: [recompensa-cabeca, cacada]
+    permission: deadzone.command.bounty
+    permission-message: "§cVocê não tem permissão para isso."
+  medico:
+    description: Abre a loja do Médico (itens médicos).
+    usage: /medico
+    permission: deadzone.command.lojas
+    permission-message: "§cVocê não tem permissão para isso."
+  armeiro:
+    description: Abre a loja do Armeiro (armas e modificações).
+    usage: /armeiro
+    permission: deadzone.command.lojas
+    permission-message: "§cVocê não tem permissão para isso."
+  comprador:
+    description: Abre o Comprador (venda seus itens por scraps).
+    usage: /comprador
+    permission: deadzone.command.lojas
+    permission-message: "§cVocê não tem permissão para isso."
 
 permissions:
-  deadzone.admin:
-    description: Acesso aos comandos administrativos do Deadzone.
-    default: op
-  deadzone.claim.bypass:
-    description: Ignora a restrição de construir só dentro da base.
+  # ----- Comandos de jogador (liberados por padrao; trave por grupo se quiser) -----
+  deadzone.command.bancada:
+    description: Usar /bancada (Bancada Medica).
+    default: true
+  deadzone.command.classe:
+    description: Usar /classe (selecionar classe).
+    default: true
+  deadzone.command.skills:
+    description: Usar /skills (arvore de habilidades).
+    default: true
+  deadzone.command.base:
+    description: Usar /confirmar base e /minhabase.
+    default: true
+  deadzone.command.economia:
+    description: Usar os comandos de economia (saldo, pagar, cobrar, baltop).
+    default: true
+  deadzone.command.diario:
+    description: Usar /diario (recompensa diária).
+    default: true
+  deadzone.command.stats:
+    description: Usar /stats (estatísticas).
+    default: true
+  deadzone.command.clan:
+    description: Usar /clan e /c (clãs).
+    default: true
+  deadzone.command.bounty:
+    description: Usar /bounty (recompensa pela cabeça).
+    default: true
+  deadzone.command.lojas:
+    description: Usar /medico /armeiro /comprador (lojas).
+    default: true
+  deadzone.clan.coloredtag:
+    description: Permite escolher tag colorida para o clan (VIP+).
     default: false
+  deadzone.clan.maxtier:
+    description: Clã já começa no tier máximo (Warlord/Overlord).
+    default: false
+
+  # Construir livre fora da base (build/admin).
+  deadzone.claim.bypass:
+    description: Ignora a restricao de construir so dentro da base.
+    default: false
+
+  # ----- Subcomandos administrativos de /deadzone (admins menores) -----
+  deadzone.admin.info:
+    description: /deadzone info
+    default: op
+  deadzone.admin.reload:
+    description: /deadzone reload
+    default: op
+  deadzone.admin.profile:
+    description: /deadzone profile <jogador>
+    default: op
+  deadzone.admin.giveitem:
+    description: /deadzone giveitem <id>
+    default: op
+  deadzone.admin.infection:
+    description: /deadzone infection <get|set|infect>
+    default: op
+  deadzone.admin.skill:
+    description: /deadzone skill <add|remove>
+    default: op
+  deadzone.admin.xp:
+    description: /deadzone xp <jogador> <qtd>
+    default: op
+  deadzone.admin.lock:
+    description: /deadzone lock (trancar conteiner)
+    default: op
+  deadzone.admin.unlock:
+    description: /deadzone unlock (destrancar conteiner)
+    default: op
+  deadzone.admin.zone:
+    description: /deadzone zone <pos1|pos2|create|remove|list>
+    default: op
+  deadzone.admin.bloodmoon:
+    description: /deadzone bloodmoon <start|stop|status>
+    default: op
+  deadzone.admin.mutant:
+    description: /deadzone mutant <tipo> [qtd]
+    default: op
+  deadzone.admin.gunskin:
+    description: /deadzone gunskin <skinId|none> (aplicar skin de arma)
+    default: op
+  deadzone.admin.eco:
+    description: /eco (administrar scraps)
+    default: op
+  deadzone.admin.loot:
+    description: /loot (gerenciar baús de loot)
+    default: op
+
+  # Pai: concede TODOS os subcomandos administrativos de uma vez.
+  deadzone.admin:
+    description: Acesso total aos comandos administrativos do Deadzone.
+    default: op
+    children:
+      deadzone.admin.info: true
+      deadzone.admin.reload: true
+      deadzone.admin.profile: true
+      deadzone.admin.giveitem: true
+      deadzone.admin.infection: true
+      deadzone.admin.skill: true
+      deadzone.admin.xp: true
+      deadzone.admin.lock: true
+      deadzone.admin.unlock: true
+      deadzone.admin.zone: true
+      deadzone.admin.bloodmoon: true
+      deadzone.admin.mutant: true
+      deadzone.admin.gunskin: true
+      deadzone.admin.eco: true
+      deadzone.admin.loot: true

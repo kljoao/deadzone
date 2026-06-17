@@ -27,5 +27,7 @@ public record FirearmType(
         String soundShoot,
         String soundReload,
         double noise,
-        int noiseRadius) {
+        int noiseRadius,
+        boolean automatic, // true = pode alternar p/ modo automático (rajada)
+        boolean scope) {   // true = base spyglass: direito = mira/zoom, esquerdo = atira
 }

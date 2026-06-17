@@ -4,7 +4,7 @@
 # =========================================================
 
 # Chance base de infectar por golpe de zumbi comum.
-base-infection-chance: 0.25
+base-infection-chance: 0.15
 
 # Chance fixa do Zumbi Corredor (mutante) — ignora a Resistência Viral do Bruto.
 runner-infection-chance: 0.05
@@ -32,7 +32,7 @@ aggravate:
 # Redutor de chance do Bruto (skill bru_resistencia_viral). Só afeta a chance BASE (não o Corredor).
 viral-resistance:
   mode: RELATIVE          # RELATIVE (chance * (1-amount)) | ABSOLUTE (chance - amount)
-  amount: 0.15
+  amount: 0.05
 
 # Mostrar o % na action bar do próprio jogador (false = só sob demanda via /deadzone infection get).
 show-actionbar: false

@@ -4,13 +4,13 @@ import com.deadzone.DeadzonePlugin;
 import com.deadzone.core.config.ConfigManager;
 import com.deadzone.core.profile.PlayerProfile;
 import com.deadzone.core.scheduler.TickService;
+import com.destroystokyo.paper.event.player.PlayerJumpEvent;
 import org.bukkit.GameMode;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.HashMap;
@@ -30,8 +30,8 @@ public class NoiseManager implements Listener {
     private boolean enabled;
     private double threshold;
     private double decayPerSecond;
-    private double blockBreak;
     private double sprintPerSecond;
+    private double jump;
     private int attractRadius;
 
     public NoiseManager(DeadzonePlugin plugin, ConfigManager configManager) {
@@ -54,15 +54,15 @@ public class NoiseManager implements Listener {
         this.enabled = c.getBoolean("enabled", true);
         this.threshold = c.getDouble("threshold", 25);
         this.decayPerSecond = c.getDouble("decay-per-second", 2);
-        this.blockBreak = c.getDouble("block-break", 4);
         this.sprintPerSecond = c.getDouble("sprint-per-second", 3);
+        this.jump = c.getDouble("jump", 2);
         this.attractRadius = c.getInt("attract-radius", 24);
     }
 
     @EventHandler(ignoreCancelled = true)
-    public void onBlockBreak(BlockBreakEvent event) {
+    public void onJump(PlayerJumpEvent event) {
         if (enabled && isSurvival(event.getPlayer())) {
-            add(event.getPlayer().getUniqueId(), blockBreak);
+            add(event.getPlayer().getUniqueId(), jump);
         }
     }
 

@@ -1,0 +1,63 @@
+# =========================================================
+#  Deadzone - Lojas do servidor (preços em scraps)
+#  item = id de item Deadzone (bandagem, g17, scrap, 9mm...) | material = material vanilla
+#  price = preço por unidade (compra) ou por unidade vendida (comprador)
+#  amount = quantos itens uma compra entrega (padrão 1)
+# =========================================================
+
+# /medico — compra de itens médicos (preço cresce com a raridade)
+medico:
+  title: "<dark_red>Clínica do Médico"
+  mode: buy
+  items:
+    - { item: bandagem, price: 25 }
+    - { item: alcool_desinfetante, price: 20 }
+    - { item: bandagem_esterilizada, price: 45 }
+    - { item: analgesico, price: 25 }
+    - { item: tala, price: 20 }
+    - { item: antidoto, price: 80 }
+    - { item: gas_mask, price: 150 }
+    - { item: seringa_adrenalina, price: 160 }
+    - { item: kit_primeiros_socorros, price: 220 }
+    - { item: desfibrilador, price: 450 }
+
+# /armeiro — seletor entre Armas e Modificações
+armeiro_armas:
+  title: "<gray>Armeiro — Armas"
+  mode: buy
+  items:
+    - { item: g17, price: 900 }
+    - { item: ump, price: 1800 }
+    - { item: ak47, price: 2800 }
+    - { item: kar98k, price: 3500 }
+    - { item: "9mm", price: 110, amount: 16 }
+    - { item: "45acp", price: 140, amount: 16 }
+    - { item: "762", price: 190, amount: 16 }
+    - { item: "792", price: 220, amount: 16 }
+
+armeiro_mods:
+  title: "<gray>Armeiro — Modificações"
+  mode: buy
+  items:
+    - { item: silenciador, price: 600 }
+    - { item: mira_8x, price: 700 }
+
+# /comprador — vende seus itens por scraps (gira a economia)
+comprador:
+  title: "<gold>Comprador"
+  mode: sell
+  items:
+    - { item: scrap, price: 12 }
+    - { material: ROTTEN_FLESH, price: 2 }
+    - { material: SPIDER_EYE, price: 2 }
+    - { material: STRING, price: 1 }
+    - { material: SUGAR, price: 1 }
+    - { material: GLASS_BOTTLE, price: 2 }
+    - { material: GLOWSTONE_DUST, price: 2 }
+    - { material: IRON_INGOT, price: 6 }
+    - { material: COPPER_INGOT, price: 4 }
+    - { material: LEATHER, price: 3 }
+    - { material: REDSTONE, price: 1 }
+    - { material: QUARTZ, price: 3 }
+    - { material: STICK, price: 1 }
+    - { material: REDSTONE_BLOCK, price: 9 }

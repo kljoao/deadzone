@@ -33,6 +33,11 @@ public class EvoluirMenu extends Menu {
 
     @Override
     protected void build(Player viewer) {
+        if (!claim.owner().equals(viewer.getUniqueId())) {
+            viewer.closeInventory();
+            viewer.sendActionBar(Component.text("Apenas o dono da base pode fazer isso.", NamedTextColor.RED));
+            return;
+        }
         boolean hMax = claim.heightUpgrades() >= manager.heightMaxUpgrades();
         ItemStack height = ClaimIcons.item(Material.LADDER,
                 Component.text("Subir altura", NamedTextColor.AQUA),

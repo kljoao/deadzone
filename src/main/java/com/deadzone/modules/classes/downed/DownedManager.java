@@ -30,6 +30,7 @@ public class DownedManager {
     private final DeadzonePlugin plugin;
     private final ClassConfig config;
     private final Map<UUID, Downed> downed = new HashMap<>();
+    private final Map<UUID, ReviveChannel> reviving = new HashMap<>();
 
     public DownedManager(DeadzonePlugin plugin, ClassConfig config) {
         this.plugin = plugin;
@@ -75,7 +76,14 @@ public class DownedManager {
         long remainingMs = ds.getExpiresAt() - System.currentTimeMillis();
         if (remainingMs <= 0) {
             profile.setDownedState(null);
-            realDeath(player); // o tempo esgotou enquanto estava offline
+            // Sem estado em memória nesta sessão: o cleanup() seria no-op e o jogador
+            // renasceria com walkSpeed 0 (imóvel). Restaura o movimento na mão e mata 1 tick depois.
+            clearDownedEffects(player, 0.2f);
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()) {
+                    player.setHealth(0.0); // o tempo esgotou enquanto estava offline
+                }
+            });
             return;
         }
         apply(player, (int) (remainingMs / 50L));
@@ -97,6 +105,8 @@ public class DownedManager {
                 1f, BossBar.Color.RED, BossBar.Overlay.PROGRESS);
         player.showBossBar(bar);
 
+        DownedPose.lieDown(player); // deita o jogador (pose nadando, via ProtocolLib — reforçado no tick)
+
         Downed state = new Downed(originalWalkSpeed, bar, totalTicks);
         state.task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> tick(player, state), 1L, 1L);
         downed.put(player.getUniqueId(), state);
@@ -112,13 +122,19 @@ public class DownedManager {
             state.task.cancel();
         }
         player.hideBossBar(state.bar);
-        // walkspeed/efeitos somem no logout; profile.downedState fica salvo
+        // IMPORTANTE: walkSpeed e efeitos de poção SÃO salvos no .dat do jogador — se não
+        // restaurarmos aqui, ele persiste imóvel. O estado fica salvo em profile.downedState
+        // e é reaplicado no relog (restore()).
+        clearDownedEffects(player, state.originalWalkSpeed);
     }
 
     private void tick(Player player, Downed state) {
         state.elapsed++;
         float remaining = 1f - Math.min(1f, (float) state.elapsed / state.totalTicks);
         state.bar.progress(remaining);
+        // Reforça a pose deitada a cada tick. NÃO usamos setSwimming server-side: o servidor
+        // reativava/desativava a natação fora d'água toda hora e brigava com o pacote (= flicker).
+        DownedPose.lieDown(player);
         if (state.elapsed % 20 == 0) {
             player.getWorld().spawnParticle(Particle.DUST, player.getLocation().add(0, 0.3, 0),
                     10, 0.3, 0.1, 0.3, 0, new Particle.DustOptions(org.bukkit.Color.fromRGB(120, 0, 0), 1.4f));
@@ -128,32 +144,97 @@ public class DownedManager {
         }
     }
 
-    /** Tenta reviver um jogador derrubado. Requer Médico com a skill de Reanimação. */
-    public boolean tryRevive(Player reviver, Player target) {
+    /**
+     * Inicia a reanimação (canalização de N segundos, mirando no caído). requireMedic = exige Médico c/ skill.
+     * onSuccess roda só quando a reanimação CONCLUI (ex.: consumir o item aí, não ao iniciar).
+     */
+    public boolean startRevive(Player reviver, Player target, boolean requireMedic, Runnable onSuccess) {
         if (!isDowned(target.getUniqueId())) {
             return false;
         }
-        PlayerProfile rev = plugin.getProfileManager().get(reviver.getUniqueId());
-        if (rev == null || rev.getPlayerClass() != PlayerClass.MEDICO || !rev.hasSkill(SKILL_REANIMACAO)) {
-            reviver.sendActionBar(Component.text("Você não sabe reanimar (Médico).", NamedTextColor.RED));
+        if (reviving.containsKey(reviver.getUniqueId())) {
+            reviver.sendActionBar(Component.text("Você já está reanimando alguém.", NamedTextColor.GRAY));
             return false;
         }
-        cleanup(target);
+        if (requireMedic) {
+            PlayerProfile rev = plugin.getProfileManager().get(reviver.getUniqueId());
+            if (rev == null || rev.getPlayerClass() != PlayerClass.MEDICO || !rev.hasSkill(SKILL_REANIMACAO)) {
+                reviver.sendActionBar(Component.text("Você não sabe reanimar (Médico).", NamedTextColor.RED));
+                return false;
+            }
+        }
+        int totalTicks = Math.max(1, config.reviveSeconds() * 20);
+        BossBar bar = BossBar.bossBar(
+                Component.text("Reanimando " + target.getName() + "...", NamedTextColor.GREEN),
+                0f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
+        reviver.showBossBar(bar);
+        reviver.playSound(reviver, Sound.BLOCK_BEACON_POWER_SELECT, 0.7f, 1.6f);
+        ReviveChannel rc = new ReviveChannel(target.getUniqueId(), bar, totalTicks, onSuccess);
+        rc.task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> tickRevive(reviver, rc), 1L, 1L);
+        reviving.put(reviver.getUniqueId(), rc);
+        return true;
+    }
 
+    private void tickRevive(Player reviver, ReviveChannel rc) {
+        Player target = plugin.getServer().getPlayer(rc.targetUuid);
+        // interrompe se: reviver saiu, alvo sumiu/morreu/levantou, ou parou de mirar no caído
+        if (!reviver.isOnline() || target == null || target.isDead() || !isDowned(target.getUniqueId())
+                || getTargetDowned(reviver) != target) {
+            cancelRevive(reviver, "Reanimação interrompida.");
+            return;
+        }
+        rc.elapsed++;
+        rc.bar.progress(Math.min(1f, (float) rc.elapsed / rc.totalTicks));
+        if (rc.elapsed % 10 == 0) {
+            target.getWorld().spawnParticle(Particle.HEART, target.getLocation().add(0, 1.0, 0), 1, 0.3, 0.3, 0.3, 0);
+        }
+        if (rc.elapsed >= rc.totalTicks) {
+            finishRevive(reviver, target, rc);
+        }
+    }
+
+    private void finishRevive(Player reviver, Player target, ReviveChannel rc) {
+        endReviveChannel(reviver);
+        cleanup(target);
         double maxHealth = maxHealth(target);
         target.setHealth(Math.max(1.0, maxHealth * config.reviveHealthPercent() / 100.0));
         target.playSound(target, Sound.ITEM_TOTEM_USE, 1f, 1f);
-        target.sendTitle("", "");
         target.showTitle(net.kyori.adventure.title.Title.title(
                 Component.text("Reanimado!", NamedTextColor.GREEN),
                 Component.text("Você foi salvo por " + reviver.getName(), NamedTextColor.GRAY)));
         reviver.sendActionBar(Component.text("Você reanimou " + target.getName() + "!", NamedTextColor.GREEN));
-
         PlayerProfile profile = plugin.getProfileManager().get(reviver.getUniqueId());
         if (profile != null) {
+            profile.addRevive(); // estatística vitalícia
             plugin.getClassManager().grantXp(reviver, profile, config.xpReviveAlly(), "reanimação");
         }
+        if (rc.onSuccess != null) {
+            rc.onSuccess.run(); // consome o item só agora (revive concluído)
+        }
+    }
+
+    private void cancelRevive(Player reviver, String message) {
+        if (endReviveChannel(reviver) && reviver.isOnline()) {
+            reviver.sendActionBar(Component.text(message, NamedTextColor.RED));
+            reviver.playSound(reviver, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.6f);
+        }
+    }
+
+    private boolean endReviveChannel(Player reviver) {
+        ReviveChannel rc = reviving.remove(reviver.getUniqueId());
+        if (rc == null) {
+            return false;
+        }
+        if (rc.task != null) {
+            rc.task.cancel();
+        }
+        reviver.hideBossBar(rc.bar);
         return true;
+    }
+
+    /** Cancela uma reanimação em andamento por este jogador (ex.: saiu/morreu). */
+    public void cancelReviveBy(Player reviver) {
+        endReviveChannel(reviver);
     }
 
     private void realDeath(Player player) {
@@ -171,15 +252,21 @@ public class DownedManager {
         if (state.task != null) {
             state.task.cancel();
         }
-        player.setWalkSpeed(state.originalWalkSpeed);
-        removeEffect(player, "slowness");
-        removeEffect(player, "jump_boost");
-        removeEffect(player, "blindness");
         player.hideBossBar(state.bar);
+        clearDownedEffects(player, state.originalWalkSpeed);
         PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());
         if (profile != null) {
             profile.setDownedState(null);
         }
+    }
+
+    /** Restaura movimento e remove os efeitos do estado derrubado (não mexe na bossbar nem no profile). */
+    private void clearDownedEffects(Player player, float walkSpeed) {
+        player.setWalkSpeed(walkSpeed);
+        removeEffect(player, "slowness");
+        removeEffect(player, "jump_boost");
+        removeEffect(player, "blindness");
+        DownedPose.standUp(player);
     }
 
     private void announceNearby(Player player) {
@@ -220,6 +307,22 @@ public class DownedManager {
             this.originalWalkSpeed = originalWalkSpeed;
             this.bar = bar;
             this.totalTicks = totalTicks;
+        }
+    }
+
+    private static final class ReviveChannel {
+        final UUID targetUuid;
+        final BossBar bar;
+        final int totalTicks;
+        final Runnable onSuccess;
+        int elapsed;
+        BukkitTask task;
+
+        ReviveChannel(UUID targetUuid, BossBar bar, int totalTicks, Runnable onSuccess) {
+            this.targetUuid = targetUuid;
+            this.bar = bar;
+            this.totalTicks = totalTicks;
+            this.onSuccess = onSuccess;
         }
     }
 }

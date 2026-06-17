@@ -72,11 +72,20 @@ public class SaqueadorListener implements Listener {
         }
         int newDamage = meta.getDamage() + amount;
         if (newDamage >= meta.getMaxDamage()) {
-            stack.setAmount(stack.getAmount() - 1);
+            int remaining = stack.getAmount() - 1;
+            // Quebrou: limpa o slot (ou reduz a pilha) escrevendo de volta explicitamente.
+            player.getInventory().setItemInMainHand(remaining > 0 ? withAmount(stack, remaining) : null);
             player.playSound(player, Sound.ENTITY_ITEM_BREAK, 1f, 1f);
         } else {
             meta.setDamage(newDamage);
             stack.setItemMeta(meta);
+            player.getInventory().setItemInMainHand(stack); // força a atualização do slot no cliente
         }
+    }
+
+    private ItemStack withAmount(ItemStack stack, int amount) {
+        ItemStack copy = stack.clone();
+        copy.setAmount(amount);
+        return copy;
     }
 }

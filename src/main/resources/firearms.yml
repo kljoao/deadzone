@@ -16,6 +16,24 @@ ammo:
     display-name: "<gray>Municao 9mm"
     lore:
       - "<dark_gray>Calibre 9mm"
+  "45acp":
+    material: IRON_NUGGET
+    model-data: 4002
+    display-name: "<gray>Municao .45 ACP"
+    lore:
+      - "<dark_gray>Calibre .45 ACP"
+  "762":
+    material: IRON_NUGGET
+    model-data: 4003
+    display-name: "<gray>Municao 7.62x39"
+    lore:
+      - "<dark_gray>Calibre 7.62x39"
+  "792":
+    material: IRON_NUGGET
+    model-data: 4004
+    display-name: "<gray>Municao 7.92x57 Mauser"
+    lore:
+      - "<dark_gray>Calibre 7.92x57 (sniper)"
 
 guns:
   g17:
@@ -39,10 +57,180 @@ guns:
     spread-recovery: 6.0       # graus recuperados por segundo parado
     # Coronhada (botao esquerdo): so com golpe 100% carregado; cooldown server-side (timer na tela).
     melee-damage: 4.0          # dano da coronhada
-    melee-cooldown-seconds: 8.0 # cooldown entre golpes (mostra timer; arma nao some)
-    melee-slow-seconds: 5      # duracao da concussao (lentidao + brilho); 0 = sem efeito
+    melee-cooldown-seconds: 60.0 # cooldown entre golpes (mostra timer; arma nao some)
+    melee-slow-seconds: 3      # duracao da concussao (lentidao + brilho); 0 = sem efeito
     melee-slow-amplifier: 6    # nivel da lentidao (6 = praticamente parado = "maxima")
     sound-shoot: "deadzone:firearm.g17.shoot"
     sound-reload: "deadzone:firearm.g17.reload"
     noise: 30.0                # barulho gerado por tiro
     noise-radius: 40           # raio de atracao dos zumbis
+
+  # ---- UMP-45 (SMG .45 ACP) ----
+  ump:
+    model-data: 3002
+    display-name: "<gray>UMP-45"
+    lore:
+      - "<gray>Submetralhadora .45, automatica."
+    ammo-item: "45acp"
+    damage: 4.5
+    projectile-speed: 4.0
+    bullet-drop: 0.015
+    fire-cooldown-ms: 67       # ~67ms = ~15 tiros por segundo (modo automatico)
+    magazine-size: 25
+    reload-ms: 2400
+    draw-ms: 1400
+    spread-base: 0.8           # SMG: um pouco menos precisa que a pistola
+    spread-per-shot: 0.35
+    spread-max: 4.5
+    spread-recovery: 7.0
+    melee-damage: 4.0
+    melee-cooldown-seconds: 60.0
+    melee-slow-seconds: 3
+    melee-slow-amplifier: 6
+    sound-shoot: "deadzone:firearm.ump.shoot"
+    sound-reload: "deadzone:firearm.ump.reload"
+    noise: 32.0
+    noise-radius: 42
+    automatic: true            # permite alternar semi/automatico (Shift+F)
+
+  # ---- UMP-45 Silenciada (gerada ao aplicar o Silenciador na bancada) ----
+  ump_suppressed:
+    model-data: 3003
+    display-name: "<gray>UMP-45 <dark_gray>(Silenciada)"
+    lore:
+      - "<gray>Submetralhadora .45 com silenciador."
+      - "<dark_gray>Disparo abafado: atrai bem menos zumbis."
+    ammo-item: "45acp"
+    damage: 4.5
+    projectile-speed: 4.0
+    bullet-drop: 0.015
+    fire-cooldown-ms: 67       # ~15 tiros por segundo (modo automatico)
+    magazine-size: 25
+    reload-ms: 2400
+    draw-ms: 1400
+    spread-base: 0.8
+    spread-per-shot: 0.35
+    spread-max: 4.5
+    spread-recovery: 7.0
+    melee-damage: 4.0
+    melee-cooldown-seconds: 60.0
+    melee-slow-seconds: 3
+    melee-slow-amplifier: 6
+    sound-shoot: "deadzone:firearm.ump_suppressed.shoot"
+    sound-reload: "deadzone:firearm.ump.reload"
+    noise: 9.0                 # silenciada: bem mais quieta
+    noise-radius: 14
+    automatic: true
+
+  # ---- AK-47 (fuzil de assalto 7.62) ----
+  ak47:
+    model-data: 3004
+    display-name: "<gray>AK-47"
+    lore:
+      - "<gray>Fuzil de assalto 7.62, robusto e forte."
+    ammo-item: "762"
+    damage: 6.0
+    projectile-speed: 4.5
+    bullet-drop: 0.012
+    fire-cooldown-ms: 100      # 100ms = 10 tiros por segundo
+    magazine-size: 30
+    reload-ms: 2800
+    draw-ms: 1500
+    spread-base: 1.0           # fuzil: recuo/dispersao um pouco maior
+    spread-per-shot: 0.4
+    spread-max: 5.0
+    spread-recovery: 6.5
+    melee-damage: 4.0
+    melee-cooldown-seconds: 60.0
+    melee-slow-seconds: 3
+    melee-slow-amplifier: 6
+    sound-shoot: "deadzone:firearm.ak47.shoot"
+    sound-reload: "deadzone:firearm.ak47.reload"
+    noise: 40.0                # fuzil: bem barulhento
+    noise-radius: 50
+    automatic: true            # SEMI (1 clique = 1 tiro) + AUTO (segurar = rajada), alterna com Shift+F
+
+  # ---- Kar98k (sniper bolt-action 7.92) - SEMI puro, 1 tiro/1.5s ----
+  # Sons reusados da AK como placeholder (sem audio proprio do kar98k ainda).
+  kar98k:
+    model-data: 3005
+    display-name: "<gray>Kar98k"
+    lore:
+      - "<gray>Fuzil de ferrolho 7.92, alto dano."
+    ammo-item: "792"
+    damage: 17.0               # deixa um player sem armadura (vida cheia) com 1,5 coração
+    projectile-speed: 6.5      # mais potente: bala mais rapida e reta
+    bullet-drop: 0.006         # cai bem menos (vai mais reto)
+    fire-cooldown-ms: 1500     # 1 tiro a cada 1.5s
+    magazine-size: 5           # carregador interno do Kar98k
+    reload-ms: 3500
+    draw-ms: 1600
+    spread-base: 0.0           # sniper: 1o tiro cravado
+    spread-per-shot: 0.3
+    spread-max: 2.0
+    spread-recovery: 8.0
+    melee-damage: 4.0
+    melee-cooldown-seconds: 60.0
+    melee-slow-seconds: 3
+    melee-slow-amplifier: 6
+    sound-shoot: "deadzone:firearm.kar98k.shoot"
+    sound-reload: "deadzone:firearm.kar98k.reload"
+    noise: 45.0                # sniper: estouro alto
+    noise-radius: 60
+
+  kar98k_scope:
+    model-data: 3006
+    scope: true                # base spyglass: segurar direito = mira/zoom, esquerdo = atira
+    display-name: "<gray>Kar98k <dark_gray>(Luneta)"
+    lore:
+      - "<gray>Kar98k com luneta 8x."
+      - "<dark_gray>Luneta: alcance bem maior (bala mais reta)."
+    ammo-item: "792"
+    damage: 17.0               # 1,5 coração num player sem armadura
+    projectile-speed: 8.0      # luneta: bala mais rapida (mais alcance)
+    bullet-drop: 0.002         # luneta: cai MUITO menos = alcance bem maior
+    fire-cooldown-ms: 1500
+    magazine-size: 5
+    reload-ms: 3500
+    draw-ms: 1600
+    spread-base: 0.0
+    spread-per-shot: 0.3
+    spread-max: 2.0
+    spread-recovery: 8.0
+    melee-damage: 4.0
+    melee-cooldown-seconds: 60.0
+    melee-slow-seconds: 3
+    melee-slow-amplifier: 6
+    sound-shoot: "deadzone:firearm.kar98k.shoot"
+    sound-reload: "deadzone:firearm.kar98k.reload"
+    noise: 45.0
+    noise-radius: 60
+
+  kar98k_scope_sup:
+    model-data: 3007
+    scope: true                # base spyglass: segurar direito = mira/zoom, esquerdo = atira
+    display-name: "<gray>Kar98k <dark_gray>(Luneta + Silenciador)"
+    lore:
+      - "<gray>Kar98k com luneta 8x e silenciador."
+      - "<dark_gray>Luneta: alcance bem maior (bala mais reta)."
+      - "<dark_gray>Disparo abafado: atrai bem menos zumbis."
+    ammo-item: "792"
+    damage: 17.0               # 1,5 coração num player sem armadura
+    projectile-speed: 8.0      # luneta: bala mais rapida (mais alcance)
+    bullet-drop: 0.002         # luneta: cai MUITO menos = alcance bem maior
+    fire-cooldown-ms: 1500
+    magazine-size: 5
+    reload-ms: 3500
+    draw-ms: 1600
+    spread-base: 0.0
+    spread-per-shot: 0.3
+    spread-max: 2.0
+    spread-recovery: 8.0
+    melee-damage: 4.0
+    melee-cooldown-seconds: 60.0
+    melee-slow-seconds: 3
+    melee-slow-amplifier: 6
+    sound-shoot: "deadzone:firearm.kar98k_suppressed.shoot"
+    sound-reload: "deadzone:firearm.kar98k.reload"
+    noise: 15.0                # silenciada
+    noise-radius: 22

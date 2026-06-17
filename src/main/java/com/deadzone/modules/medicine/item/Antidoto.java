@@ -21,7 +21,7 @@ public class Antidoto extends DefinedItem {
             return true;
         }
         int seconds = def.useInt("suppress-seconds", 90);
-        double reduce = def.useInt("reduce-infection", 10);
+        double reduce = def.useDouble("reduce-infection", 10); // aceita valores fracionários (ex.: 2.5)
         plugin.getInfectionManager().suppressSymptoms(player.getUniqueId(), seconds);
 
         PlayerProfile profile = plugin.getProfileManager().get(player.getUniqueId());

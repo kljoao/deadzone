@@ -1,0 +1,9 @@
+# =========================================================
+#  Deadzone - Skins cosméticas de armas (custom model data)
+#  'model-data' = CMD do modelo IDLE da skin. A animação de saque usa model-data + 100
+#  (precisa existir o override no carrot_on_a_stick.json). A arma base continua intacta.
+#
+#  (Sem skins por enquanto — a skin "wave" foi removida; a versão re-UVada virá depois.)
+# =========================================================
+
+skins: {}

@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 // O agravamento (EntityDamageEvent, LOW) roda antes da chance de infecção
 // (EntityDamageByEntityEvent, NORMAL), pra o golpe que infecta não agravar no mesmo instante.
@@ -64,5 +65,11 @@ public class InfectionListener implements Listener {
         event.deathMessage(plugin.getMessages().get("infection-death",
                 Placeholder.unparsed("player", player.getName())));
         p.setDyingFromInfection(false);
+    }
+
+    /** Saída: limpa colapso/efeitos/mapas da infecção (evita task órfã e leak). */
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        manager.handleQuit(event.getPlayer());
     }
 }

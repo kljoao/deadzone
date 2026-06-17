@@ -21,7 +21,7 @@ public class Bandagem extends DefinedItem {
             return false;
         }
         boolean sterile = id().equals("bandagem_esterilizada");
-        boolean bleeding = profile.getBleedState() != null;
+        boolean bleeding = plugin.getMedicineManager().bleeding().getBleed(player.getUniqueId()) != null;
         boolean wound = plugin.getMedicineManager().bleeding().isWoundInfected(player.getUniqueId());
         // A esterilizada tambem trata ferida infeccionada; a comum so serve para sangramento.
         if (sterile ? (!bleeding && !wound) : !bleeding) {

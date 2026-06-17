@@ -55,6 +55,7 @@ public class BloodMoonManager {
         cancel(scheduleTaskId);
         stopTasks();
         scheduleTaskId = -1;
+        active = false; // encerra limpo no shutdown: não deixa o estado "ativo" pendurado p/ o restart
     }
 
     private void checkSchedule() {

@@ -11,6 +11,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 
 /** Liga o estado Derrubado aos eventos: intercepta o dano letal e impede que o derrubado aja. */
 public class DownedListener implements Listener {
@@ -69,11 +70,23 @@ public class DownedListener implements Listener {
     @EventHandler
     public void onDeath(PlayerDeathEvent event) {
         manager.cleanup(event.getEntity());
+        manager.cancelReviveBy(event.getEntity());
+    }
+
+    /** Rede de segurança: ninguém renasce congelado. Se não está derrubado mas o walkSpeed
+     *  ficou perto de zero (resquício do estado derrubado), restaura o padrão. */
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        if (!manager.isDowned(player.getUniqueId()) && player.getWalkSpeed() < 0.05f) {
+            player.setWalkSpeed(0.2f);
+        }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         // Não dá cleanup (que zeraria o estado): só desanexa o runtime e preserva o downed para o relog.
         manager.detach(event.getPlayer());
+        manager.cancelReviveBy(event.getPlayer());
     }
 }

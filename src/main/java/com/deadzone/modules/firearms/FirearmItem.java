@@ -45,9 +45,8 @@ public class FirearmItem extends CustomItem {
 
     @Override
     public boolean onUse(Player player, ItemStack stack) {
-        // Botão direito = atira. O botão esquerdo dá a coronhada (ataque melee).
-        manager.shoot(player, this, stack);
-        return true;
+        // Botão direito = atira. No modo automático retorna false p/ não cancelar o "uso" (detectar o segurar).
+        return manager.shoot(player, this, stack);
     }
 
     @Override
@@ -66,11 +65,18 @@ public class FirearmItem extends CustomItem {
             lore.add(stat("Dano", String.valueOf((int) type.damage())));
             lore.add(stat("Cadência", rpm + " RPM"));
             lore.add(stat("Pente", String.valueOf(type.magazineSize())));
-            if (type.meleeSlowSeconds() > 0) {
+            if (!type.scope() && type.meleeSlowSeconds() > 0) {
                 lore.add(stat("Coronhada", "concussão " + type.meleeSlowSeconds() + "s"));
             }
             lore.add(Component.empty());
-            lore.add(MM.deserialize("<dark_gray><italic>Dir: atira  •  Esq: coronhada  •  F: recarregar"));
+            if (type.scope()) {
+                lore.add(MM.deserialize("<dark_gray><italic>Dir: atira  •  Esq: mira (luneta)  •  F: recarregar"));
+            } else {
+                lore.add(MM.deserialize("<dark_gray><italic>Dir: atira  •  Esq: coronhada  •  F: recarregar"));
+                if (type.automatic()) {
+                    lore.add(MM.deserialize("<dark_gray><italic>Shift+F: alterna semi/automático"));
+                }
+            }
             meta.lore(lore);
             meta.setCustomModelData(type.customModelData());
             meta.setUnbreakable(true);

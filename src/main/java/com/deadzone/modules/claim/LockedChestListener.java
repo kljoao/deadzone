@@ -5,9 +5,15 @@ import com.deadzone.core.gui.MenuHolder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
+import org.bukkit.block.DoubleChest;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -18,8 +24,11 @@ import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
 /** Baús físicos trancados: colocar (define senha), abrir (PIN), quebrar (só dono) e proteção. */
@@ -60,6 +69,7 @@ public class LockedChestListener implements Listener {
             player.sendActionBar(Component.text("Baú duplo — mesma senha do baú vizinho.", NamedTextColor.GREEN));
             return;
         }
+        locks.markPending(block); // trava a abertura até o dono definir o PIN (sem janela aberta)
         plugin.getServer().getScheduler().runTask(plugin, () -> openSetKeypad(player, block));
     }
 
@@ -73,11 +83,13 @@ public class LockedChestListener implements Listener {
         new PinKeypadMenu(PinKeypadMenu.Mode.SET,
                 pin -> {
                     locks.lockNew(block, player.getUniqueId(), pin);
+                    locks.clearPending(block);
                     player.playSound(player, Sound.BLOCK_IRON_DOOR_CLOSE, 0.8f, 1.3f);
                     player.sendActionBar(Component.text("Baú trancado!", NamedTextColor.GREEN));
                     return true;
                 },
                 () -> {
+                    locks.clearPending(block);
                     if (LockedChestManager.isChest(block.getType()) && !locks.isLocked(block)) {
                         block.setType(Material.AIR, false);
                         player.getInventory().addItem(new ItemStack(type));
@@ -93,10 +105,18 @@ public class LockedChestListener implements Listener {
             return;
         }
         Block block = event.getClickedBlock();
-        if (block == null || !LockedChestManager.isChest(block.getType()) || !locks.isLocked(block)) {
+        if (block == null || !LockedChestManager.isChest(block.getType())) {
             return;
         }
         Player player = event.getPlayer();
+        if (locks.isPending(block)) {
+            event.setCancelled(true); // baú recém-colocado, ainda sem PIN: ninguém abre
+            player.sendActionBar(Component.text("Baú sendo trancado pelo dono...", NamedTextColor.GRAY));
+            return;
+        }
+        if (!locks.isLocked(block)) {
+            return;
+        }
         event.setCancelled(true); // a abertura é controlada aqui
         if (locks.canOpen(player, block)) {
             openChest(player, block);
@@ -106,12 +126,13 @@ public class LockedChestListener implements Listener {
             new PinKeypadMenu(PinKeypadMenu.Mode.UNLOCK,
                     pin -> {
                         LockedChest lc = locks.getLock(block);
-                        if (lc != null && lc.pin().equals(pin)) {
+                        if (lc != null && lc.checkPin(pin)) {
                             locks.authorize(block, player.getUniqueId());
                             player.sendActionBar(Component.text("Baú desbloqueado!", NamedTextColor.GREEN));
                             plugin.getServer().getScheduler().runTask(plugin, () -> openChest(player, block));
                             return true;
                         }
+                        punishWrongPin(player); // anti-brute-force: erra = leva dano
                         return false;
                     },
                     () -> {
@@ -123,6 +144,19 @@ public class LockedChestListener implements Listener {
         if (block.getState() instanceof Chest chest) {
             player.openInventory(chest.getInventory());
         }
+    }
+
+    /** Penalidade por errar o PIN: -3 corações (sem sangramento), choque visual, náusea e aviso. */
+    private void punishWrongPin(Player player) {
+        player.damage(6.0); // dano "custom": não é de zumbi/arma, então não dispara sangramento
+        player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.4f);
+        player.getWorld().spawnParticle(Particle.CRIT, player.getEyeLocation(), 12, 0.3, 0.3, 0.3, 0.1);
+        PotionEffectType nausea = Registry.EFFECT.get(NamespacedKey.minecraft("nausea"));
+        if (nausea != null) {
+            player.addPotionEffect(new PotionEffect(nausea, 60, 0, false, true, true));
+        }
+        player.sendMessage(Component.text("⚡ Senha incorreta! A fechadura deu um choque (-3 ❤).",
+                NamedTextColor.RED));
     }
 
     /** Só o dono quebra o próprio baú trancado. */
@@ -139,6 +173,26 @@ public class LockedChestListener implements Listener {
             return;
         }
         locks.removeLock(block); // dono quebra: libera a tranca e 1 do limite
+    }
+
+    /** Funis/automação NÃO movem itens para dentro nem para fora de baús trancados (bypass do PIN). */
+    @EventHandler(ignoreCancelled = true)
+    public void onItemMove(InventoryMoveItemEvent event) {
+        if (isLockedInventory(event.getSource()) || isLockedInventory(event.getDestination())) {
+            event.setCancelled(true);
+        }
+    }
+
+    private boolean isLockedInventory(Inventory inv) {
+        InventoryHolder holder = inv.getHolder();
+        if (holder instanceof DoubleChest dc) {
+            return isLockedHolder(dc.getLeftSide()) || isLockedHolder(dc.getRightSide());
+        }
+        return isLockedHolder(holder);
+    }
+
+    private boolean isLockedHolder(InventoryHolder holder) {
+        return holder instanceof Chest chest && locks.isLocked(chest.getBlock());
     }
 
     @EventHandler(ignoreCancelled = true)

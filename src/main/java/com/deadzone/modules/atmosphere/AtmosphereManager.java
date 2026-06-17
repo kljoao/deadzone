@@ -46,6 +46,7 @@ public class AtmosphereManager {
     }
 
     public void enable(TickService tickService) {
+        plugin.getZombieRadar().ensureRadius(threatRadius);
         tickService.registerSecondHandler(this::tick);
     }
 
@@ -162,12 +163,6 @@ public class AtmosphereManager {
     }
 
     private int countZombies(Player player) {
-        int count = 0;
-        for (var entity : player.getNearbyEntities(threatRadius, threatRadius, threatRadius)) {
-            if (plugin.getInfectionManager().isZombieType(entity)) {
-                count++;
-            }
-        }
-        return count;
+        return plugin.getZombieRadar().count(player, threatRadius);
     }
 }

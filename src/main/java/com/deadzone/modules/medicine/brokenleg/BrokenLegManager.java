@@ -8,18 +8,23 @@ import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Color;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
+import org.bukkit.Tag;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -30,6 +35,12 @@ import java.util.concurrent.ThreadLocalRandom;
 public class BrokenLegManager {
 
     private static final String SPLINT_ID = "tala";
+
+    // Cair sobre estes blocos reduz muito a chance de quebrar a perna (amortecem a queda).
+    private static final Set<Material> SOFT_BLOCKS = EnumSet.of(
+            Material.SAND, Material.RED_SAND, Material.GRAVEL,
+            Material.HAY_BLOCK, Material.SPONGE, Material.WET_SPONGE);
+    private static final double SOFT_BLOCK_MULTIPLIER = 0.25;
 
     private final DeadzonePlugin plugin;
     private final BrokenLegConfig config;
@@ -74,9 +85,17 @@ public class BrokenLegManager {
         }
         double chance = Math.min(config.maxChance(),
                 (fallDistance - config.minFallDistance()) * config.chancePerBlock());
+        if (isSoftLanding(player)) {
+            chance *= SOFT_BLOCK_MULTIPLIER; // amorteceu (areia, feno, cama, esponja, cascalho...)
+        }
         if (ThreadLocalRandom.current().nextDouble() < chance) {
             breakLeg(player);
         }
+    }
+
+    private boolean isSoftLanding(Player player) {
+        Material below = player.getLocation().getBlock().getRelative(BlockFace.DOWN).getType();
+        return SOFT_BLOCKS.contains(below) || Tag.BEDS.isTagged(below);
     }
 
     private void breakLeg(Player player) {
@@ -195,6 +214,25 @@ public class BrokenLegManager {
     public void clearLeg(UUID uuid) {
         brokenUntil.remove(uuid);
         splints.remove(uuid);
+    }
+
+    /** Remove os efeitos da perna (slowness/jump) — usado no respawn como rede de segurança. */
+    public void removeLegEffects(Player player) {
+        clearImmobilize(player);
+    }
+
+    /** Limpa TUDO do jogador: tala em andamento, estado de fratura e efeitos. Morte. */
+    public void clearAll(Player player) {
+        quietCleanupSplint(player);
+        clearLeg(player.getUniqueId());
+        clearImmobilize(player);
+    }
+
+    /** Saída: cancela a tala e tira os efeitos (não persiste slowness no .dat), mas MANTÉM a fratura:
+     *  ela volta no relog (sem cura grátis ao deslogar). Reiniciar o servidor zera. */
+    public void suspendForLogout(Player player) {
+        quietCleanupSplint(player);
+        clearImmobilize(player);
     }
 
     private void consumeMainHand(Player player) {

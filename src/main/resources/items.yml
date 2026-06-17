@@ -19,7 +19,7 @@ items:
       cast-seconds: 5          # tempo de canalização (segurar/imóvel) para aplicar
     recipe:
       ingredients:
-        STRING: 3
+        STRING: 8
 
   alcool_desinfetante:
     material: GLASS_BOTTLE
@@ -59,7 +59,7 @@ items:
     tier: T1
     use:
       cooldown-seconds: 20
-      sanity: 5
+      sanity: 30
     recipe:
       ingredients:
         SUGAR: 1
@@ -136,7 +136,7 @@ items:
         STRING: 1
 
   gas_mask:
-    material: CHAINMAIL_HELMET
+    material: CARVED_PUMPKIN
     name: "<gray>Máscara de Gás"
     lore:
       - "<gray>Equipe no capacete para se proteger"
@@ -160,3 +160,125 @@ items:
         COPPER_INGOT: 2
         REDSTONE_BLOCK: 1
         QUARTZ: 1
+
+  # ===== Armeiro -> Anexos (attachments) =====
+  silenciador:
+    material: IRON_INGOT
+    name: "<gray>Silenciador"
+    lore:
+      - "<dark_gray>Anexo de arma de fogo."
+      - "<gray>Reduz o barulho do disparo."
+      - "<dark_gray>Aplique numa arma compatível."
+    model-data: 5001
+    category: armeiro_attachments
+    tier: T2
+    recipe:
+      requires-skill: armeiro
+      ingredients:
+        IRON_INGOT: 5
+        COPPER_INGOT: 2
+        AMETHYST_SHARD: 2
+
+  mira_8x:
+    material: SPYGLASS
+    name: "<gray>Mira 8x"
+    lore:
+      - "<dark_gray>Anexo de arma de fogo."
+      - "<gray>Luneta de longo alcance (mais zoom)."
+      - "<dark_gray>Aplique num fuzil compatível."
+    model-data: 5002
+    category: armeiro_attachments
+    tier: T2
+    recipe:
+      requires-skill: armeiro
+      ingredients:
+        AMETHYST_SHARD: 2
+        COPPER_INGOT: 2
+        GLASS: 1
+
+  # ===== Armeiro -> Armas =====
+  # Os itens entregues sao as ARMAS (registradas pelo firearms.yml, que sobrescreve estes ids
+  # no registro); estas entradas existem so para a receita e o icone na aba Armas da bancada.
+  ump:
+    material: CARROT_ON_A_STICK
+    name: "<gray>UMP-45"
+    lore:
+      - "<dark_gray>Submetralhadora .45 ACP."
+    model-data: 3002
+    category: armeiro_armas
+    tier: T2
+    recipe:
+      requires-skill: armeiro
+      ingredients:
+        IRON_INGOT: 8
+        COPPER_INGOT: 4
+        REDSTONE: 4
+        AMETHYST_SHARD: 1
+
+  kar98k:
+    material: CARROT_ON_A_STICK
+    name: "<gray>Kar98k"
+    lore:
+      - "<dark_gray>Fuzil de ferrolho 7.92."
+    model-data: 3005
+    category: armeiro_armas
+    tier: T3
+    recipe:
+      requires-skill: armeiro
+      ingredients:
+        IRON_INGOT: 12
+        COPPER_INGOT: 4
+        AMETHYST_SHARD: 2
+
+  # Aplicar silenciador: UMP + Silenciador -> UMP Silenciada.
+  ump_suppressed:
+    material: CARROT_ON_A_STICK
+    name: "<gray>UMP-45 (Silenciada)"
+    lore:
+      - "<dark_gray>Aplica o silenciador na UMP-45."
+    model-data: 3003
+    category: armeiro_armas
+    tier: T2
+    recipe:
+      ingredients:
+        ump: 1
+        silenciador: 1
+
+  # Aplicar mira 8x: Kar98k + Mira 8x -> Kar98k (Luneta).
+  kar98k_scope:
+    material: CARROT_ON_A_STICK
+    name: "<gray>Kar98k (Luneta)"
+    lore:
+      - "<dark_gray>Aplica a mira 8x no Kar98k."
+    model-data: 3006
+    category: armeiro_armas
+    tier: T3
+    recipe:
+      ingredients:
+        kar98k: 1
+        mira_8x: 1
+
+  # Aplicar silenciador na luneta: Kar98k (Luneta) + Silenciador -> Kar98k (Luneta + Silenciador).
+  kar98k_scope_sup:
+    material: CARROT_ON_A_STICK
+    name: "<gray>Kar98k (Luneta + Silenciador)"
+    lore:
+      - "<dark_gray>Aplica o silenciador no Kar98k com luneta."
+    model-data: 3007
+    category: armeiro_armas
+    tier: T3
+    recipe:
+      ingredients:
+        kar98k_scope: 1
+        silenciador: 1
+
+  # ===== Loot / Economia =====
+  # Sucata: cai nos baús de loot; o jogador vende no mercador por scraps (mecânica futura).
+  scrap:
+    material: IRON_NUGGET
+    name: "<gray>Sucata"
+    lore:
+      - "<dark_gray>Ferro-velho, peças e restos."
+      - "<gray>Venda no mercador por scraps."
+    model-data: 6001
+    tier: T1

@@ -7,7 +7,6 @@ import com.deadzone.modules.classes.gui.ClassMenu;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 
 /** Abre o menu de seleção de classe quando o jogador está sem classe (NONE). */
@@ -21,14 +20,12 @@ public class ClassRespawnListener implements Listener {
         this.manager = manager;
     }
 
-    @EventHandler
-    public void onRespawn(PlayerRespawnEvent event) {
-        openIfNoClass(event.getPlayer(), 10L);
-    }
+    // O join agora é tratado pelo hook onProfileLoaded no ClassManager (sem race com o load async).
 
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-        openIfNoClass(event.getPlayer(), 40L); // dá tempo do perfil carregar (async)
+    public void onRespawn(PlayerRespawnEvent event) {
+        // No respawn o perfil já está carregado; pequeno delay só p/ o respawn assentar.
+        openIfNoClass(event.getPlayer(), 10L);
     }
 
     private void openIfNoClass(Player player, long delayTicks) {

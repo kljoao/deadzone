@@ -26,6 +26,10 @@ public class ResourcePackListener implements Listener {
             return;
         }
         String sha1 = c.getString("resource-pack.sha1", "");
+        if (sha1 == null || sha1.isBlank()) {
+            plugin.getLogger().warning("resource-pack.sha1 vazio: o cliente rebaixa o pack a cada login "
+                    + "(sem cache/validação). Preencha o SHA-1 do .zip em config.yml.");
+        }
         boolean force = c.getBoolean("resource-pack.force", false);
         var prompt = plugin.getMessages().parse(c.getString("resource-pack.prompt", ""));
         event.getPlayer().setResourcePack(url, sha1, force, prompt);

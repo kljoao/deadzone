@@ -67,6 +67,8 @@ public class ItemsConfig {
             requiredSkill = null;
         }
 
+        String category = s.getString("category", "medica").toLowerCase();
+
         Map<String, Object> use = new HashMap<>();
         ConfigurationSection useSec = s.getConfigurationSection("use");
         if (useSec != null) {
@@ -81,7 +83,7 @@ public class ItemsConfig {
             }
         }
 
-        return new ItemDefinition(id, material, name, lore, modelData, tier, requiredSkill, use, recipe);
+        return new ItemDefinition(id, material, name, lore, modelData, tier, requiredSkill, category, use, recipe);
     }
 
     public ItemDefinition get(String id) {

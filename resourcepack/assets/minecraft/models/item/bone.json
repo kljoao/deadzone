@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "minecraft:item/bone"
+  },
+  "overrides": [
+    {"predicate": {"custom_model_data": 1007}, "model": "deadzone:item/tala"}
+  ]
+}

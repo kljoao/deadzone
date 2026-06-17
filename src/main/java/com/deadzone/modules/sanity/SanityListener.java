@@ -7,10 +7,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 
 /**
- * Aplica a penalidade de dano corpo a corpo conforme a sanidade e limpa a BossBar na saída.
+ * Aplica a penalidade de dano corpo a corpo conforme a sanidade.
  */
 public class SanityListener implements Listener {
 
@@ -35,10 +34,5 @@ public class SanityListener implements Listener {
         if (factor < 1.0) {
             event.setDamage(event.getDamage() * factor);
         }
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        manager.clear(event.getPlayer().getUniqueId());
     }
 }

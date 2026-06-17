@@ -70,10 +70,18 @@ public class MutantLabelService implements Listener {
             if (current != null && current.zombieId.equals(target.getUniqueId()) && current.display.isValid()) {
                 current.display.teleport(labelLocation(target)); // acompanha a cabeça
             } else {
-                if (current != null) {
-                    removeDisplay(current);
+                TextDisplay display;
+                if (current != null && current.display.isValid()) {
+                    // Reaproveita o display ao TROCAR de alvo: só re-texta e reposiciona (sem churn de entidade).
+                    display = current.display;
+                    display.text(labelText(mutants.getType(target)));
+                } else {
+                    if (current != null) {
+                        removeDisplay(current);
+                    }
+                    display = createLabel(player, target);
                 }
-                TextDisplay display = createLabel(player, target);
+                display.teleport(labelLocation(target));
                 shown.put(player.getUniqueId(), new Shown(display, target.getUniqueId()));
             }
         }
